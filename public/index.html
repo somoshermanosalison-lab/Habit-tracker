@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Habit Tracker Wave</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Seguimiento diario</p>
+          <h1>Tu registrador de hábitos con vista tipo hoja y gráfica en onda.</h1>
+          <p class="hero-text">
+            Marca cada día exacto, agrega tus propios hábitos y visualiza tu avance como una ola viva.
+          </p>
+        </div>
+        <section class="hero-card">
+          <div class="stat">
+            <span class="stat-label">Cumplimiento total</span>
+            <strong id="completionRate">0%</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Hábitos activos</span>
+            <strong id="habitCount">0</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Días visibles</span>
+            <strong id="visibleDays">0</strong>
+          </div>
+        </section>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel form-panel">
+          <div class="panel-heading">
+            <h2>Agregar hábito</h2>
+            <p>Personaliza tu tabla y empieza a marcar desde hoy.</p>
+          </div>
+          <form id="habitForm" class="habit-form">
+            <label>
+              Nombre del hábito
+              <input id="habitName" name="habitName" type="text" maxlength="40" placeholder="Ej. Tomar agua" required />
+            </label>
+            <label>
+              Categoría
+              <input id="habitCategory" name="habitCategory" type="text" maxlength="24" placeholder="Salud, estudio, etc." />
+            </label>
+            <button type="submit">Guardar hábito</button>
+          </form>
+          <button id="resetDataButton" class="ghost-button" type="button">Reiniciar seguimiento</button>
+        </section>
+
+        <section class="panel wave-panel">
+          <div class="panel-heading">
+            <h2>Onda de progreso</h2>
+            <p>Línea diaria de progreso para el mes y año seleccionados.</p>
+          </div>
+          <div class="wave-wrap">
+            <canvas id="waveCanvas" width="900" height="320" aria-label="Gráfica lineal del progreso"></canvas>
+          </div>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="panel-heading">
+            <h2>Registro diario</h2>
+            <p>Vista tipo Excel con fechas exactas del mes y año elegidos.</p>
+          </div>
+          <div class="calendar-controls">
+            <label>
+              Mes
+              <select id="monthSelect"></select>
+            </label>
+            <label>
+              Año
+              <select id="yearSelect"></select>
+            </label>
+          </div>
+          <div class="table-scroll">
+            <table class="habit-table">
+              <thead id="habitTableHead"></thead>
+              <tbody id="habitTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="emptyStateTemplate">
+      <tr>
+        <td colspan="100%" class="empty-state">
+          Aún no hay hábitos. Agrega uno arriba para comenzar.
+        </td>
+      </tr>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+  </html>
