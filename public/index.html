@@ -14,92 +14,299 @@
   </head>
   <body>
     <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Seguimiento diario</p>
-          <h1>HABIT TRACKER.</h1>
-          <p class="hero-text">
-            Marca cada día exacto, agrega tus propios hábitos y visualiza tu avance.
-          </p>
+      <header class="topbar">
+        <button id="menuToggle" class="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobileMenu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="topbar-copy">
+          <p class="eyebrow">Planner mensual</p>
+          <strong id="currentSectionLabel">Dashboard</strong>
         </div>
-        <section class="hero-card">
-          <div class="stat">
-            <span class="stat-label">Cumplimiento total</span>
-            <strong id="completionRate">0%</strong>
-          </div>
-          <div class="stat">
-            <span class="stat-label">Hábitos activos</span>
-            <strong id="habitCount">0</strong>
-          </div>
-          <div class="stat">
-            <span class="stat-label">Días visibles</span>
-            <strong id="visibleDays">0</strong>
-          </div>
-        </section>
       </header>
 
-      <main class="dashboard">
-        <section class="panel form-panel">
-          <div class="panel-heading">
-            <h2>Agregar hábito</h2>
-            <p>Personaliza tu tabla y empieza a marcar desde hoy.</p>
+      <div class="app-shell">
+        <aside id="mobileMenu" class="side-menu" aria-hidden="true">
+          <div class="menu-head">
+            <h2>Secciones</h2>
+            <button id="menuClose" class="menu-close" type="button" aria-label="Cerrar menú">×</button>
           </div>
-          <form id="habitForm" class="habit-form">
-            <label>
-              Nombre del hábito
-              <input id="habitName" name="habitName" type="text" maxlength="40" placeholder="Ej. Tomar agua" required />
-            </label>
-            <label>
-              Categoría
-              <input id="habitCategory" name="habitCategory" type="text" maxlength="24" placeholder="Salud, estudio, etc." />
-            </label>
-            <button type="submit">Guardar hábito</button>
-          </form>
-          <button id="resetDataButton" class="ghost-button" type="button">Reiniciar seguimiento</button>
-        </section>
+          <nav class="menu-nav">
+            <button class="menu-link is-active" type="button" data-section="dashboard">Dashboard</button>
+            <button class="menu-link" type="button" data-section="habits">Habit tracker</button>
+            <button class="menu-link" type="button" data-section="balance">Saldo actual</button>
+          </nav>
+        </aside>
 
-        <section class="panel wave-panel">
-          <div class="panel-heading">
-            <h2>Onda de progreso</h2>
-            <p>Línea diaria de progreso para el mes y año seleccionados.</p>
-          </div>
-          <div class="wave-wrap">
-            <canvas id="waveCanvas" width="900" height="320" aria-label="Gráfica lineal del progreso"></canvas>
-          </div>
-        </section>
+        <div id="menuBackdrop" class="menu-backdrop" hidden></div>
 
-        <section class="panel table-panel">
-          <div class="panel-heading">
-            <h2>Registro diario</h2>
-          </div>
-          <div class="calendar-controls">
-            <label>
-              Mes
-              <select id="monthSelect"></select>
-            </label>
-            <label>
-              Año
-              <select id="yearSelect"></select>
-            </label>
-          </div>
-          <div class="table-scroll">
-            <table class="habit-table">
-              <thead id="habitTableHead"></thead>
-              <tbody id="habitTableBody"></tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+        <main>
+          <section id="section-dashboard" class="app-section is-active">
+            <header class="hero">
+              <div class="hero-copy">
+                <p class="eyebrow">Dashboard general</p>
+                <h1>Tu equilibrio mensual en una sola vista.</h1>
+                <p class="hero-text">Aquí verás hacia qué áreas de tu vida se está inclinando tu rendimiento y qué debes corregir para mantenerlo equilibrado.</p>
+              </div>
+              <section class="hero-card">
+                <div class="stat">
+                  <span class="stat-label">Índice general</span>
+                  <strong id="overviewScore">0%</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Hábitos</span>
+                  <strong id="dashboardHabitScore">0%</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Finanzas</span>
+                  <strong id="dashboardFinanceScore">0%</strong>
+                </div>
+              </section>
+            </header>
+
+            <div class="dashboard">
+              <section class="panel overview-panel">
+                <div class="panel-heading">
+                  <h2>Vista general</h2>
+                  <p>Resumen principal de tu progreso y tu salud financiera del mes seleccionado.</p>
+                </div>
+                <div class="overview-grid">
+                  <div class="overview-chart-wrap">
+                    <canvas id="overviewRadarCanvas" width="900" height="320" aria-label="Gráfica de radar del dashboard"></canvas>
+                    <div class="overview-center">
+                      <strong id="overviewCenterScore">0%</strong>
+                      <span>Índice general</span>
+                    </div>
+                  </div>
+                  <div class="overview-stats">
+                    <div class="stat">
+                      <span class="stat-label">Progreso de hábitos</span>
+                      <strong id="dashboardHabitScore">0%</strong>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label">Saldo actual</span>
+                      <strong id="dashboardBalanceValue">$0</strong>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label">Acción recomendada</span>
+                      <strong id="dashboardMainFocus">Hábitos</strong>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section class="panel insight-panel">
+                <div class="panel-heading">
+                  <h2>Lectura del balance</h2>
+                  <p>Interpretación de tus áreas fuertes y de lo que conviene reforzar.</p>
+                </div>
+                <div id="dashboardInsights" class="finance-legend"></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="section-habits" class="app-section">
+            <header class="hero">
+              <div class="hero-copy">
+                <p class="eyebrow">Seguimiento diario</p>
+                <h1>HABIT TRACKER.</h1>
+                <p class="hero-text">Marca cada día exacto, agrega tus propios hábitos y visualiza tu avance.</p>
+              </div>
+              <section class="hero-card">
+                <div class="stat">
+                  <span class="stat-label">Cumplimiento total</span>
+                  <strong id="completionRate">0%</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Hábitos activos</span>
+                  <strong id="habitCount">0</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Días visibles</span>
+                  <strong id="visibleDays">0</strong>
+                </div>
+              </section>
+            </header>
+
+            <div class="dashboard">
+              <section class="panel form-panel">
+                <div class="panel-heading">
+                  <h2>Agregar hábito</h2>
+                  <p>Personaliza tu tabla y empieza a marcar desde hoy.</p>
+                </div>
+                <form id="habitForm" class="habit-form">
+                  <label>
+                    Nombre del hábito
+                    <input id="habitName" name="habitName" type="text" maxlength="40" placeholder="Ej. Tomar agua" required />
+                  </label>
+                  <label>
+                    Categoría
+                    <input id="habitCategory" name="habitCategory" type="text" maxlength="24" placeholder="Salud, estudio, etc." />
+                  </label>
+                  <button type="submit">Guardar hábito</button>
+                </form>
+                <button id="resetDataButton" class="ghost-button" type="button">Reiniciar seguimiento</button>
+              </section>
+
+              <section class="panel wave-panel">
+                <div class="panel-heading">
+                  <h2>Onda de progreso</h2>
+                  <p>Línea diaria de progreso para el mes y año seleccionados.</p>
+                </div>
+                <div class="wave-wrap">
+                  <canvas id="waveCanvas" width="900" height="320" aria-label="Gráfica lineal del progreso"></canvas>
+                </div>
+              </section>
+
+              <section class="panel table-panel">
+                <div class="panel-heading">
+                  <h2>Registro diario</h2>
+                </div>
+                <div class="calendar-controls">
+                  <label>
+                    Mes
+                    <select id="monthSelect"></select>
+                  </label>
+                  <label>
+                    Año
+                    <select id="yearSelect"></select>
+                  </label>
+                </div>
+                <div class="table-scroll">
+                  <table class="habit-table">
+                    <thead id="habitTableHead"></thead>
+                    <tbody id="habitTableBody"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="section-balance" class="app-section">
+            <header class="hero finance-hero">
+              <div class="hero-copy">
+                <p class="eyebrow">Saldo actual</p>
+                <h1>Controla entradas, salidas y pagos a plazos del mes.</h1>
+                <p class="hero-text">
+                  Organiza tus movimientos por categoría y revisa en qué se va más dinero con una gráfica de pastel.
+                </p>
+              </div>
+              <section class="hero-card finance-stats">
+                <div class="stat">
+                  <span class="stat-label">Saldo del mes</span>
+                  <strong id="financeBalance">$0</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Entradas</span>
+                  <strong id="financeIncome">$0</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Salidas</span>
+                  <strong id="financeExpenses">$0</strong>
+                </div>
+              </section>
+            </header>
+
+            <div class="dashboard finance-dashboard">
+              <section class="panel finance-form-panel">
+                <div class="panel-heading">
+                  <h2>Nuevo movimiento</h2>
+                  <p>Registra ingresos, gastos y pagos diferidos del mes visible.</p>
+                </div>
+                <form id="financeForm" class="habit-form">
+                  <label>
+                    Tipo
+                    <select id="financeType" name="financeType" required>
+                      <option value="income">Entrada</option>
+                      <option value="expense">Salida</option>
+                      <option value="installment">Pago a plazos</option>
+                    </select>
+                  </label>
+                  <label>
+                    Concepto
+                    <input id="financeTitle" name="financeTitle" type="text" maxlength="40" placeholder="Ej. Nómina, renta, gimnasio" required />
+                  </label>
+                  <label>
+                    Categoría
+                    <select id="financeCategory" name="financeCategory" required>
+                      <option value="Ingresos">Ingresos</option>
+                      <option value="Alimentación">Alimentación</option>
+                      <option value="Entretenimiento">Entretenimiento</option>
+                      <option value="Salud">Salud</option>
+                      <option value="Higiene">Higiene</option>
+                      <option value="Transporte">Transporte</option>
+                      <option value="Hogar">Hogar</option>
+                      <option value="Suscripciones">Suscripciones</option>
+                      <option value="Educación">Educación</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                  </label>
+                  <label>
+                    Monto
+                    <input id="financeAmount" name="financeAmount" type="number" min="0" step="0.01" placeholder="0.00" required />
+                  </label>
+                  <label>
+                    Fecha exacta
+                    <input id="financeDate" name="financeDate" type="date" required />
+                  </label>
+                  <label id="installmentMonthsLabel" class="is-hidden">
+                    Número de plazos
+                    <input id="financeInstallments" name="financeInstallments" type="number" min="2" max="60" value="3" />
+                  </label>
+                  <button type="submit">Guardar movimiento</button>
+                </form>
+              </section>
+
+              <section class="panel finance-chart-panel">
+                <div class="panel-heading">
+                  <h2>Distribución de gastos</h2>
+                  <p>Visualiza las categorías con mayor peso en tu mes.</p>
+                </div>
+                <div class="pie-wrap">
+                  <canvas id="financePieCanvas" width="900" height="320" aria-label="Gráfica de pastel de gastos"></canvas>
+                </div>
+                <div id="financeLegend" class="finance-legend"></div>
+              </section>
+
+              <section class="panel table-panel">
+                <div class="panel-heading">
+                  <h2>Movimientos del mes</h2>
+                  <p>Entradas, salidas y plazos organizados por fecha y categoría.</p>
+                </div>
+                <div class="table-scroll">
+                  <table class="habit-table finance-table">
+                    <thead>
+                      <tr>
+                        <th>Concepto</th>
+                        <th>Tipo</th>
+                        <th>Categoría</th>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="financeTableBody"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
 
     <template id="emptyStateTemplate">
       <tr>
-        <td colspan="100%" class="empty-state">
-          Aún no hay hábitos. Agrega uno arriba para comenzar.
-        </td>
+        <td colspan="100%" class="empty-state">Aún no hay hábitos. Agrega uno arriba para comenzar.</td>
+      </tr>
+    </template>
+
+    <template id="financeEmptyStateTemplate">
+      <tr>
+        <td colspan="6" class="empty-state">Aún no hay movimientos en este mes.</td>
       </tr>
     </template>
 
     <script src="./app.js"></script>
   </body>
-  </html>
+</html>
