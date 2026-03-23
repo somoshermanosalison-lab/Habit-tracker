@@ -1,9 +1,4 @@
 const STORAGE_KEY = "habit-tracker-wave-state-v1";
-const DEFAULT_HABITS = [
-  { id: createId(), name: "Tomar agua", category: "Salud" },
-  { id: createId(), name: "Leer 20 min", category: "Crecimiento" },
-  { id: createId(), name: "Caminar", category: "Movimiento" }
-];
 
 const state = loadState();
 const habitForm = document.getElementById("habitForm");
@@ -12,6 +7,7 @@ const habitCategoryInput = document.getElementById("habitCategory");
 const resetDataButton = document.getElementById("resetDataButton");
 const habitTableHead = document.getElementById("habitTableHead");
 const habitTableBody = document.getElementById("habitTableBody");
+const tableScroll = document.querySelector(".table-scroll");
 const completionRate = document.getElementById("completionRate");
 const habitCount = document.getElementById("habitCount");
 const visibleDays = document.getElementById("visibleDays");
@@ -53,10 +49,10 @@ function loadState() {
 
   try {
     const parsed = JSON.parse(stored);
+    const monthData = normalizeMonthData(parsed.monthData, parsed.habits, parsed.entries, currentMonthKey);
     return {
       selectedMonthKey: parsed.selectedMonthKey || parsed.monthKey || currentMonthKey,
-      habits: Array.isArray(parsed.habits) && parsed.habits.length ? parsed.habits : structuredClone(DEFAULT_HABITS),
-      entries: parsed.entries && typeof parsed.entries === "object" ? parsed.entries : {}
+      monthData
     };
   } catch (error) {
     return createInitialState(currentMonthKey);
@@ -66,8 +62,9 @@ function loadState() {
 function createInitialState(monthKey) {
   return {
     selectedMonthKey: monthKey,
-    habits: structuredClone(DEFAULT_HABITS),
-    entries: {}
+    monthData: {
+      [monthKey]: createEmptyMonthData()
+    }
   };
 }
 
@@ -86,7 +83,8 @@ function handleHabitSubmit(event) {
     return;
   }
 
-  state.habits.push({
+  const monthState = getCurrentMonthState();
+  monthState.habits.push({
     id: createId(),
     name,
     category
@@ -103,10 +101,7 @@ function handleReset() {
     return;
   }
 
-  const nextState = createInitialState(state.selectedMonthKey);
-  state.selectedMonthKey = nextState.selectedMonthKey;
-  state.habits = nextState.habits;
-  state.entries = nextState.entries;
+  state.monthData[state.selectedMonthKey] = createEmptyMonthData();
   saveState();
   render();
 }
@@ -117,6 +112,7 @@ function render() {
   renderTable(days);
   updateSummary(days);
   renderWave();
+  scrollToToday(days);
 }
 
 function renderTable(days) {
@@ -130,6 +126,9 @@ function renderTable(days) {
 
   days.forEach((day) => {
     const th = document.createElement("th");
+    if (day.isToday) {
+      th.dataset.isToday = "true";
+    }
     th.innerHTML = `
       <div class="day-label">
         <span>${day.dayNumber}</span>
@@ -140,25 +139,35 @@ function renderTable(days) {
   });
 
   habitTableHead.appendChild(headerRow);
+  const monthState = getCurrentMonthState();
 
-  if (!state.habits.length) {
+  if (!monthState.habits.length) {
     habitTableBody.appendChild(emptyStateTemplate.content.cloneNode(true));
     return;
   }
 
-  state.habits.forEach((habit) => {
+  monthState.habits.forEach((habit) => {
     const row = document.createElement("tr");
     const habitCell = document.createElement("td");
     habitCell.innerHTML = `
-      <div class="habit-meta">
-        <strong>${escapeHtml(habit.name)}</strong>
-        <span>${escapeHtml(habit.category)}</span>
+      <div class="habit-cell">
+        <div class="habit-meta">
+          <strong>${escapeHtml(habit.name)}</strong>
+          <span>${escapeHtml(habit.category)}</span>
+        </div>
+        <button class="habit-delete" type="button" aria-label="Eliminar ${escapeHtml(habit.name)}">✕</button>
       </div>
     `;
+    habitCell.querySelector(".habit-delete").addEventListener("click", () => {
+      deleteHabit(habit.id);
+    });
     row.appendChild(habitCell);
 
     days.forEach((day) => {
       const cell = document.createElement("td");
+      if (day.isToday) {
+        cell.dataset.isToday = "true";
+      }
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.className = "habit-check";
@@ -177,16 +186,18 @@ function renderTable(days) {
 }
 
 function toggleHabitEntry(habitId, isoDate, isChecked) {
-  if (!state.entries[habitId]) {
-    state.entries[habitId] = {};
+  const monthState = getCurrentMonthState();
+
+  if (!monthState.entries[habitId]) {
+    monthState.entries[habitId] = {};
   }
 
   if (isChecked) {
-    state.entries[habitId][isoDate] = true;
+    monthState.entries[habitId][isoDate] = true;
   } else {
-    delete state.entries[habitId][isoDate];
-    if (!Object.keys(state.entries[habitId]).length) {
-      delete state.entries[habitId];
+    delete monthState.entries[habitId][isoDate];
+    if (!Object.keys(monthState.entries[habitId]).length) {
+      delete monthState.entries[habitId];
     }
   }
 
@@ -195,15 +206,34 @@ function toggleHabitEntry(habitId, isoDate, isChecked) {
   renderWave();
 }
 
+function deleteHabit(habitId) {
+  const monthState = getCurrentMonthState();
+  const habit = monthState.habits.find((item) => item.id === habitId);
+  if (!habit) {
+    return;
+  }
+
+  const confirmed = window.confirm(`Se eliminará el hábito "${habit.name}" y todos sus registros guardados. ¿Deseas continuar?`);
+  if (!confirmed) {
+    return;
+  }
+
+  monthState.habits = monthState.habits.filter((item) => item.id !== habitId);
+  delete monthState.entries[habitId];
+  saveState();
+  render();
+}
+
 function isHabitDoneOnDate(habitId, isoDate) {
-  return Boolean(state.entries[habitId]?.[isoDate]);
+  return Boolean(getCurrentMonthState().entries[habitId]?.[isoDate]);
 }
 
 function updateSummary(days) {
-  const totalHabits = state.habits.length;
+  const monthState = getCurrentMonthState();
+  const totalHabits = monthState.habits.length;
   const totalSlots = totalHabits * days.length;
-  const totalCompleted = state.habits.reduce((count, habit) => {
-    return count + Object.keys(state.entries[habit.id] || {}).length;
+  const totalCompleted = monthState.habits.reduce((count, habit) => {
+    return count + Object.keys(monthState.entries[habit.id] || {}).length;
   }, 0);
 
   const percent = totalSlots ? Math.round((totalCompleted / totalSlots) * 100) : 0;
@@ -218,20 +248,28 @@ function renderWave() {
   }
 
   const bounds = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(canvas.clientWidth || bounds.width));
+  const height = Math.max(1, Math.round(canvas.clientHeight || bounds.height));
   const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, Math.floor(bounds.width * ratio));
-  canvas.height = Math.max(1, Math.floor(bounds.height * ratio));
+  canvas.width = Math.max(1, Math.floor(width * ratio));
+  canvas.height = Math.max(1, Math.floor(height * ratio));
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   const days = getMonthDays();
   const completionByDay = days.map((day) => getCompletionForDate(day.isoDate));
-  drawLineChart(completionByDay, days, bounds.width, bounds.height);
+  drawLineChart(completionByDay, days, width, height);
 }
 
 function drawLineChart(completionByDay, days, width, height) {
   ctx.clearRect(0, 0, width, height);
 
-  const padding = { top: 24, right: 18, bottom: 46, left: 42 };
+  const isCompact = width < 480;
+  const padding = {
+    top: 24,
+    right: isCompact ? 10 : 18,
+    bottom: isCompact ? 56 : 46,
+    left: isCompact ? 34 : 42
+  };
   const chartWidth = Math.max(width - padding.left - padding.right, 1);
   const chartHeight = Math.max(height - padding.top - padding.bottom, 1);
 
@@ -310,30 +348,59 @@ function drawLineChart(completionByDay, days, width, height) {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    if (points.length <= 16 || index % 2 === 0 || index === points.length - 1) {
+    if (points.length <= 14 || index % (isCompact ? 4 : 2) === 0 || index === points.length - 1) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
       ctx.textAlign = "center";
       ctx.font = "11px DM Sans";
       ctx.fillText(String(point.day), point.x, height - 16);
     }
   });
+
+  drawTodayMarker(days, points, padding, height);
+}
+
+function drawTodayMarker(days, points, padding, height) {
+  const todayIndex = getTodayIndexForVisibleMonth(days);
+  if (todayIndex < 0 || !points[todayIndex]) {
+    return;
+  }
+
+  const markerX = points[todayIndex].x;
+  ctx.save();
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(markerX, padding.top);
+  ctx.lineTo(markerX, height - padding.bottom + 8);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.font = "700 11px DM Sans";
+  ctx.fillText("Hoy", markerX, padding.top - 8);
+  ctx.restore();
 }
 
 function getCompletionForDate(isoDate) {
-  if (!state.habits.length) {
+  const monthState = getCurrentMonthState();
+  if (!monthState.habits.length) {
     return 0;
   }
 
-  const completedHabits = state.habits.reduce((count, habit) => {
-    return count + (state.entries[habit.id]?.[isoDate] ? 1 : 0);
+  const completedHabits = monthState.habits.reduce((count, habit) => {
+    return count + (monthState.entries[habit.id]?.[isoDate] ? 1 : 0);
   }, 0);
 
-  return completedHabits / state.habits.length;
+  return completedHabits / monthState.habits.length;
 }
 
 function getMonthDays() {
   const { year, monthIndex } = getSelectedPeriod();
   const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+  const today = new Date();
+  const todayIso = toIsoDate(today);
 
   return Array.from({ length: totalDays }, (_, index) => {
     const date = new Date(year, monthIndex, index + 1);
@@ -344,7 +411,8 @@ function getMonthDays() {
       dayNumber: index + 1,
       isoDate,
       fullLabel,
-      weekdayShort: dayFormatter.format(date)
+      weekdayShort: dayFormatter.format(date),
+      isToday: isoDate === todayIso
     };
   });
 }
@@ -402,8 +470,39 @@ function syncCalendarControls() {
 function handlePeriodChange() {
   const month = String(Number(monthSelect.value) + 1).padStart(2, "0");
   state.selectedMonthKey = `${yearSelect.value}-${month}`;
+  ensureMonthState(state.selectedMonthKey);
   saveState();
   render();
+}
+
+function getTodayIndexForVisibleMonth(days) {
+  const today = new Date();
+  const { year, monthIndex } = getSelectedPeriod();
+  if (today.getFullYear() !== year || today.getMonth() !== monthIndex) {
+    return -1;
+  }
+
+  return days.findIndex((day) => day.isoDate === toIsoDate(today));
+}
+
+function scrollToToday(days) {
+  if (!tableScroll) {
+    return;
+  }
+
+  const todayIndex = getTodayIndexForVisibleMonth(days);
+  if (todayIndex < 0) {
+    tableScroll.scrollLeft = 0;
+    return;
+  }
+
+  const todayHeader = habitTableHead.querySelector('th[data-is-today="true"]');
+  if (!todayHeader) {
+    return;
+  }
+
+  const targetLeft = todayHeader.offsetLeft - tableScroll.clientWidth / 2 + todayHeader.clientWidth / 2;
+  tableScroll.scrollLeft = Math.max(0, targetLeft);
 }
 
 function toIsoDate(date) {
@@ -415,6 +514,54 @@ function toIsoDate(date) {
 
 function createId() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function getCurrentMonthState() {
+  ensureMonthState(state.selectedMonthKey);
+  return state.monthData[state.selectedMonthKey];
+}
+
+function ensureMonthState(monthKey) {
+  if (!state.monthData) {
+    state.monthData = {};
+  }
+
+  if (!state.monthData[monthKey]) {
+    state.monthData[monthKey] = createEmptyMonthData();
+  }
+}
+
+function createEmptyMonthData() {
+  return {
+    habits: [],
+    entries: {}
+  };
+}
+
+function normalizeMonthData(rawMonthData, legacyHabits, legacyEntries, currentMonthKey) {
+  const normalized = {};
+
+  if (rawMonthData && typeof rawMonthData === "object") {
+    Object.entries(rawMonthData).forEach(([monthKey, monthState]) => {
+      normalized[monthKey] = {
+        habits: Array.isArray(monthState?.habits) ? monthState.habits : [],
+        entries: monthState?.entries && typeof monthState.entries === "object" ? monthState.entries : {}
+      };
+    });
+  }
+
+  if (!Object.keys(normalized).length && (Array.isArray(legacyHabits) || legacyEntries)) {
+    normalized[currentMonthKey] = {
+      habits: Array.isArray(legacyHabits) ? legacyHabits : [],
+      entries: legacyEntries && typeof legacyEntries === "object" ? legacyEntries : {}
+    };
+  }
+
+  if (!normalized[currentMonthKey]) {
+    normalized[currentMonthKey] = createEmptyMonthData();
+  }
+
+  return normalized;
 }
 
 function escapeHtml(value) {
