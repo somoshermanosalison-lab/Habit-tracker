@@ -370,6 +370,36 @@ h2 {
   gap: var(--space-3);
 }
 
+.finance-base-row,
+.finance-visibility-row {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.finance-base-row label {
+  max-width: 14rem;
+}
+
+.finance-visibility-row {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.money-visibility-button {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 42, 42, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.eye-button {
+  margin-top: auto;
+}
+
 .habit-form label,
 .calendar-controls label {
   display: grid;
@@ -671,6 +701,11 @@ h2 {
 
   .calendar-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-base-row {
+    grid-template-columns: minmax(12rem, 14rem) auto;
+    align-items: end;
   }
 
   .habit-table {

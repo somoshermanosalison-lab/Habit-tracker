@@ -213,6 +213,17 @@
                   <h2>Nuevo movimiento</h2>
                   <p>Registra ingresos, gastos y pagos diferidos del mes visible.</p>
                 </div>
+                <div class="finance-base-row">
+                  <label>
+                    Saldo base (MXN)
+                    <input id="financeBaseAmount" name="financeBaseAmount" type="number" min="0" step="0.01" placeholder="0.00" />
+                  </label>
+                  <button id="saveBaseAmountButton" class="ghost-button eye-button" type="button">Guardar saldo base</button>
+                </div>
+                <div class="finance-visibility-row">
+                  <span>Visibilidad del saldo</span>
+                  <button id="toggleMoneyVisibility" class="money-visibility-button" type="button" aria-pressed="false">Mostrar</button>
+                </div>
                 <form id="financeForm" class="habit-form">
                   <label>
                     Tipo

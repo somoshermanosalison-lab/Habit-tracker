@@ -43,6 +43,9 @@ const financeCategory = document.getElementById("financeCategory");
 const financeAmount = document.getElementById("financeAmount");
 const financeDate = document.getElementById("financeDate");
 const financeInstallments = document.getElementById("financeInstallments");
+const financeBaseAmount = document.getElementById("financeBaseAmount");
+const saveBaseAmountButton = document.getElementById("saveBaseAmountButton");
+const toggleMoneyVisibility = document.getElementById("toggleMoneyVisibility");
 const installmentMonthsLabel = document.getElementById("installmentMonthsLabel");
 const financeBalance = document.getElementById("financeBalance");
 const financeIncome = document.getElementById("financeIncome");
@@ -97,6 +100,8 @@ function attachEvents() {
 
   financeForm.addEventListener("submit", handleFinanceSubmit);
   financeType.addEventListener("change", syncFinanceForm);
+  saveBaseAmountButton.addEventListener("click", handleBaseAmountSave);
+  toggleMoneyVisibility.addEventListener("click", handleMoneyVisibilityToggle);
 }
 
 function loadState() {
@@ -112,6 +117,7 @@ function loadState() {
     return {
       selectedMonthKey: parsed.selectedMonthKey || currentMonthKey,
       activeSection: parsed.activeSection || "dashboard",
+      moneyHidden: Boolean(parsed.moneyHidden),
       monthData: normalizeMonthData(parsed.monthData, currentMonthKey)
     };
   } catch (error) {
@@ -123,6 +129,7 @@ function createInitialState(monthKey) {
   return {
     selectedMonthKey: monthKey,
     activeSection: "dashboard",
+    moneyHidden: false,
     monthData: {
       [monthKey]: createEmptyMonthData()
     }
@@ -137,7 +144,8 @@ function createEmptyMonthData() {
   return {
     habits: [],
     entries: {},
-    finances: []
+    finances: [],
+    baseAmount: 0
   };
 }
 
@@ -149,7 +157,8 @@ function normalizeMonthData(rawMonthData, currentMonthKey) {
       normalized[monthKey] = {
         habits: Array.isArray(monthState?.habits) ? monthState.habits : [],
         entries: monthState?.entries && typeof monthState.entries === "object" ? monthState.entries : {},
-        finances: Array.isArray(monthState?.finances) ? monthState.finances : []
+        finances: Array.isArray(monthState?.finances) ? monthState.finances : [],
+        baseAmount: Number(monthState?.baseAmount || 0)
       };
     });
   }
@@ -268,6 +277,7 @@ function render() {
   renderFinance();
   renderOverview();
   syncFinanceForm();
+  renderMoneyVisibility();
 }
 
 function renderHabits() {
@@ -675,15 +685,18 @@ function getExpandedMonthlyFinanceEntries() {
 
 function renderFinanceSummary() {
   const entries = getExpandedMonthlyFinanceEntries();
+  const monthState = getCurrentMonthState();
+  const baseAmount = Number(monthState.baseAmount || 0);
   const incomeTotal = entries.filter((entry) => entry.type === "income").reduce((sum, entry) => sum + entry.monthlyAmount, 0);
   const expenseTotal = entries.filter((entry) => entry.type !== "income").reduce((sum, entry) => sum + entry.monthlyAmount, 0);
-  const balance = incomeTotal - expenseTotal;
+  const balance = baseAmount + incomeTotal - expenseTotal;
   const financeHealth = incomeTotal > 0 ? Math.max(0, Math.min(100, Math.round((balance / incomeTotal) * 100))) : 0;
 
-  financeIncome.textContent = currencyFormatter.format(incomeTotal);
-  financeExpenses.textContent = currencyFormatter.format(expenseTotal);
-  financeBalance.textContent = currencyFormatter.format(balance);
-  dashboardBalanceValue.textContent = currencyFormatter.format(balance);
+  financeBaseAmount.value = monthState.baseAmount ? String(monthState.baseAmount) : "";
+  financeIncome.textContent = formatMoneyValue(incomeTotal);
+  financeExpenses.textContent = formatMoneyValue(expenseTotal);
+  financeBalance.textContent = formatMoneyValue(balance);
+  dashboardBalanceValue.textContent = formatMoneyValue(balance);
   dashboardFinanceScore.textContent = `${financeHealth}%`;
 }
 
@@ -811,9 +824,11 @@ function renderOverview() {
 
 function getFinanceStats() {
   const entries = getExpandedMonthlyFinanceEntries();
+  const monthState = getCurrentMonthState();
+  const baseAmount = Number(monthState.baseAmount || 0);
   const incomeTotal = entries.filter((entry) => entry.type === "income").reduce((sum, entry) => sum + entry.monthlyAmount, 0);
   const expenseTotal = entries.filter((entry) => entry.type !== "income").reduce((sum, entry) => sum + entry.monthlyAmount, 0);
-  const balance = incomeTotal - expenseTotal;
+  const balance = baseAmount + incomeTotal - expenseTotal;
   const health = incomeTotal > 0 ? Math.max(0, Math.min(100, Math.round((balance / incomeTotal) * 100))) : 0;
   const savingsScore = incomeTotal > 0 ? Math.max(0, Math.min(100, Math.round(((incomeTotal - expenseTotal) / incomeTotal) * 100))) : 0;
   return { incomeTotal, expenseTotal, balance, health, savingsScore };
@@ -933,6 +948,33 @@ function toIsoDate(date) {
 function formatShortDate(isoDate) {
   const date = new Date(`${isoDate}T12:00:00`);
   return new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" }).format(date);
+}
+
+function handleBaseAmountSave() {
+  const monthState = getCurrentMonthState();
+  const nextBase = Number(financeBaseAmount.value || 0);
+  monthState.baseAmount = nextBase >= 0 ? nextBase : 0;
+  saveState();
+  renderFinance();
+  renderOverview();
+}
+
+function handleMoneyVisibilityToggle() {
+  state.moneyHidden = !state.moneyHidden;
+  saveState();
+  renderMoneyVisibility();
+  renderFinance();
+  renderOverview();
+}
+
+function renderMoneyVisibility() {
+  toggleMoneyVisibility.textContent = state.moneyHidden ? "Mostrar" : "Ocultar";
+  toggleMoneyVisibility.setAttribute("aria-pressed", String(state.moneyHidden));
+  financeBaseAmount.type = state.moneyHidden ? "password" : "number";
+}
+
+function formatMoneyValue(value) {
+  return state.moneyHidden ? "••••••" : currencyFormatter.format(value);
 }
 
 function createId() {
