@@ -36,6 +36,7 @@
             <button class="menu-link is-active" type="button" data-section="dashboard">Dashboard</button>
             <button class="menu-link" type="button" data-section="habits">Habit tracker</button>
             <button class="menu-link" type="button" data-section="balance">Saldo actual</button>
+            <button class="menu-link" type="button" data-section="training">Entrenamiento</button>
           </nav>
         </aside>
 
@@ -87,6 +88,10 @@
                     <div class="stat">
                       <span class="stat-label">Saldo actual</span>
                       <strong id="dashboardBalanceValue">$0</strong>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label">Entrenamiento</span>
+                      <strong id="dashboardTrainingScore">0%</strong>
                     </div>
                     <div class="stat">
                       <span class="stat-label">Acción recomendada</span>
@@ -299,6 +304,243 @@
                     <tbody id="financeTableBody"></tbody>
                   </table>
                 </div>
+              </section>
+            </div>
+          </section>
+
+          <section id="section-training" class="app-section">
+            <header class="hero finance-hero">
+              <div class="hero-copy">
+                <p class="eyebrow">Entrenamiento</p>
+                <h1>Construye tu progreso físico semana a semana.</h1>
+                <p class="hero-text">
+                  Ajusta tu perfil, crea tu rutina, registra repeticiones y pesos, y observa qué zonas del cuerpo estás trabajando más.
+                </p>
+              </div>
+              <section class="hero-card finance-stats">
+                <div class="stat">
+                  <span class="stat-label">Puntuación física</span>
+                  <strong id="trainingScore">0%</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">IMC</span>
+                  <strong id="trainingBmi">0.0</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Minutos por semana</span>
+                  <strong id="trainingWeeklyMinutes">0</strong>
+                </div>
+              </section>
+            </header>
+
+            <div class="training-subnav">
+              <button class="training-nav-link is-active" type="button" data-training-view="profile">Perfil</button>
+              <button class="training-nav-link" type="button" data-training-view="routine">Rutina</button>
+              <button class="training-nav-link" type="button" data-training-view="log">Registro</button>
+              <button class="training-nav-link" type="button" data-training-view="analysis">Análisis</button>
+            </div>
+
+            <div class="dashboard training-dashboard">
+              <section class="panel training-view is-active" data-training-view="profile">
+                <div class="panel-heading">
+                  <h2>Perfil físico</h2>
+                  <p>Estos datos te ayudan a medir constancia, carga semanal e índice de masa corporal.</p>
+                </div>
+                <form id="trainingProfileForm" class="habit-form">
+                  <label>
+                    Peso (kg)
+                    <input id="trainingWeight" name="trainingWeight" type="number" min="0" step="0.1" placeholder="72.5" />
+                  </label>
+                  <label>
+                    Estatura (cm)
+                    <input id="trainingHeight" name="trainingHeight" type="number" min="0" step="0.1" placeholder="175" />
+                  </label>
+                  <label>
+                    Días de entrenamiento por semana
+                    <input id="trainingDays" name="trainingDays" type="number" min="0" max="7" step="1" placeholder="4" />
+                  </label>
+                  <label>
+                    Minutos por sesión
+                    <input id="trainingMinutes" name="trainingMinutes" type="number" min="0" max="300" step="1" placeholder="75" />
+                  </label>
+                  <button type="submit">Guardar perfil</button>
+                </form>
+              </section>
+
+              <section class="panel training-view" data-training-view="routine">
+                <div class="panel-heading">
+                  <h2>Constructor semanal de rutina</h2>
+                  <p>Arrastra ejercicios a tu semana, acomódalos en el orden que prefieras y arma tu bloque por día.</p>
+                </div>
+                <div class="routine-builder">
+                  <div class="routine-library-panel">
+                    <div class="routine-toolbar">
+                      <label>
+                        Grupo muscular
+                        <select id="routineLibraryGroup" name="routineLibraryGroup">
+                          <option value="all">Todos</option>
+                          <option value="pierna-anterior">Pierna anterior</option>
+                          <option value="pierna-posterior">Pierna posterior</option>
+                          <option value="espalda">Espalda</option>
+                          <option value="brazo">Brazo</option>
+                          <option value="pecho">Pecho</option>
+                          <option value="abdomen">Abdomen</option>
+                        </select>
+                      </label>
+                      <label>
+                        Buscar ejercicio
+                        <input id="routineSearch" name="routineSearch" type="search" maxlength="50" placeholder="Ej. press, sentadilla, remo..." />
+                      </label>
+                      <label>
+                        Agregado rápido en móvil
+                        <select id="routineQuickDay" name="routineQuickDay">
+                          <option value="monday">Lunes</option>
+                          <option value="tuesday">Martes</option>
+                          <option value="wednesday">Miércoles</option>
+                          <option value="thursday">Jueves</option>
+                          <option value="friday">Viernes</option>
+                          <option value="saturday">Sábado</option>
+                          <option value="sunday">Domingo</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="routine-library-note">
+                      <p>Arrastra cualquier item hacia <strong>Mi rutina</strong>. En celular también puedes usar el botón <strong>Agregar</strong>.</p>
+                    </div>
+                    <div id="routineExerciseLibrary" class="routine-library-grid"></div>
+                  </div>
+
+                  <div class="routine-board-panel">
+                    <div class="panel-heading routine-board-heading">
+                      <h3>Mi rutina</h3>
+                      <p>Ordena tus ejercicios dentro de cada día como si fuera una hoja semanal.</p>
+                    </div>
+                    <div class="routine-week-grid">
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Lunes</header>
+                        <div id="routineDay-monday" class="routine-dropzone" data-routine-day="monday"></div>
+                      </section>
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Martes</header>
+                        <div id="routineDay-tuesday" class="routine-dropzone" data-routine-day="tuesday"></div>
+                      </section>
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Miércoles</header>
+                        <div id="routineDay-wednesday" class="routine-dropzone" data-routine-day="wednesday"></div>
+                      </section>
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Jueves</header>
+                        <div id="routineDay-thursday" class="routine-dropzone" data-routine-day="thursday"></div>
+                      </section>
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Viernes</header>
+                        <div id="routineDay-friday" class="routine-dropzone" data-routine-day="friday"></div>
+                      </section>
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Sábado</header>
+                        <div id="routineDay-saturday" class="routine-dropzone" data-routine-day="saturday"></div>
+                      </section>
+                      <section class="routine-day-panel">
+                        <header class="routine-day-header">Domingo</header>
+                        <div id="routineDay-sunday" class="routine-dropzone" data-routine-day="sunday"></div>
+                      </section>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel training-view" data-training-view="log">
+                <div class="panel-heading">
+                  <h2>Registro de ejercicios</h2>
+                  <p>Guarda fecha, repeticiones y peso para medir el trabajo real de cada zona.</p>
+                </div>
+                <form id="trainingLogForm" class="habit-form">
+                  <label>
+                    Fecha
+                    <input id="trainingLogDate" name="trainingLogDate" type="date" />
+                  </label>
+                  <label>
+                    Grupo muscular
+                    <select id="trainingLogGroup" name="trainingLogGroup">
+                      <option value="pierna-anterior">Pierna anterior</option>
+                      <option value="pierna-posterior">Pierna posterior</option>
+                      <option value="espalda">Espalda</option>
+                      <option value="brazo">Brazo</option>
+                      <option value="pecho">Pecho</option>
+                      <option value="abdomen">Abdomen</option>
+                    </select>
+                  </label>
+                  <label>
+                    Ejercicio
+                    <select id="trainingLogExercise" name="trainingLogExercise"></select>
+                  </label>
+                  <label>
+                    Repeticiones
+                    <input id="trainingLogReps" name="trainingLogReps" type="number" min="1" step="1" placeholder="10" />
+                  </label>
+                  <label>
+                    Peso cargado (kg)
+                    <div class="stepper-field">
+                      <button class="stepper-button" type="button" data-target="trainingLogWeight" data-step="-2.5">−</button>
+                      <input id="trainingLogWeight" name="trainingLogWeight" type="number" min="0" step="0.5" placeholder="40" />
+                      <button class="stepper-button" type="button" data-target="trainingLogWeight" data-step="2.5">+</button>
+                    </div>
+                  </label>
+                  <label>
+                    Tiempo (min)
+                    <div class="stepper-field">
+                      <button class="stepper-button" type="button" data-target="trainingLogDuration" data-step="-5">−</button>
+                      <input id="trainingLogDuration" name="trainingLogDuration" type="number" min="1" step="1" placeholder="45" />
+                      <button class="stepper-button" type="button" data-target="trainingLogDuration" data-step="5">+</button>
+                    </div>
+                  </label>
+                  <button type="submit">Guardar registro</button>
+                </form>
+                <div class="table-scroll">
+                  <table class="habit-table finance-table">
+                    <thead>
+                      <tr>
+                        <th>Ejercicio</th>
+                        <th>Grupo</th>
+                        <th>Fecha</th>
+                        <th>Reps</th>
+                        <th>Peso</th>
+                        <th>Tiempo</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="trainingLogTableBody"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="panel training-view" data-training-view="analysis">
+                <div class="panel-heading">
+                  <h2>Silueta corporal</h2>
+                  <p>Las zonas con más trabajo en la semana se iluminan según tu carga registrada.</p>
+                </div>
+                <div class="body-map-wrap">
+                  <svg id="bodyMap" viewBox="0 0 220 420" class="body-map" aria-label="Mapa corporal de entrenamiento">
+                    <circle cx="110" cy="42" r="24" class="body-neutral body-zone" data-zone="general" />
+                    <path d="M78 78 Q110 56 142 78 L132 112 Q110 122 88 112 Z" class="body-neutral body-zone" data-zone="pecho" />
+                    <path d="M88 112 Q110 122 132 112 L126 150 Q110 160 94 150 Z" class="body-neutral body-zone" data-zone="abdomen" />
+                    <path d="M90 150 Q110 160 130 150 L124 186 Q110 194 96 186 Z" class="body-neutral body-zone" data-zone="abdomen" />
+                    <ellipse cx="78" cy="88" rx="15" ry="18" class="body-neutral body-zone" data-zone="hombro" />
+                    <ellipse cx="142" cy="88" rx="15" ry="18" class="body-neutral body-zone" data-zone="hombro" />
+                    <rect x="52" y="104" width="22" height="58" rx="10" class="body-neutral body-zone" data-zone="triceps" />
+                    <rect x="146" y="104" width="22" height="58" rx="10" class="body-neutral body-zone" data-zone="triceps" />
+                    <rect x="50" y="162" width="20" height="62" rx="10" class="body-neutral body-zone" data-zone="biceps" />
+                    <rect x="150" y="162" width="20" height="62" rx="10" class="body-neutral body-zone" data-zone="biceps" />
+                    <path d="M92 188 L108 188 L106 286 L84 286 L80 214 Z" class="body-neutral body-zone" data-zone="cuadriceps" />
+                    <path d="M112 188 L128 188 L140 214 L136 286 L114 286 Z" class="body-neutral body-zone" data-zone="femoral" />
+                    <path d="M84 286 L106 286 L102 356 L82 356 Z" class="body-neutral body-zone" data-zone="pantorrilla" />
+                    <path d="M114 286 L136 286 L138 356 L118 356 Z" class="body-neutral body-zone" data-zone="pantorrilla" />
+                    <ellipse cx="96" cy="198" rx="18" ry="16" class="body-neutral body-zone" data-zone="gluteo" />
+                    <ellipse cx="124" cy="198" rx="18" ry="16" class="body-neutral body-zone" data-zone="gluteo" />
+                    <path d="M80 82 Q110 70 140 82 L132 102 Q110 112 88 102 Z" class="body-neutral body-zone" data-zone="espalda" opacity="0.55" />
+                  </svg>
+                </div>
+                <div id="trainingInsights" class="finance-legend"></div>
               </section>
             </div>
           </section>

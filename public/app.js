@@ -1,5 +1,62 @@
 const STORAGE_KEY = "habit-tracker-wave-state-v2";
 const FINANCE_COLORS = ["#22c55e", "#3b82f6", "#8b5cf6", "#facc15", "#f97316", "#ec4899", "#06b6d4", "#84cc16"];
+const ROUTINE_DAYS = [
+  { key: "monday", label: "Lunes" },
+  { key: "tuesday", label: "Martes" },
+  { key: "wednesday", label: "Miércoles" },
+  { key: "thursday", label: "Jueves" },
+  { key: "friday", label: "Viernes" },
+  { key: "saturday", label: "Sábado" },
+  { key: "sunday", label: "Domingo" }
+];
+const EXERCISE_LIBRARY = {
+  "pierna-anterior": [
+    { name: "Sentadilla frontal", target: "cuadriceps" },
+    { name: "Prensa inclinada", target: "cuadriceps" },
+    { name: "Extensión de cuádriceps", target: "cuadriceps" },
+    { name: "Zancadas caminando", target: "cuadriceps" },
+    { name: "Step up", target: "gluteo" },
+    { name: "Elevación de pantorrilla", target: "pantorrilla" }
+  ],
+  "pierna-posterior": [
+    { name: "Peso muerto rumano", target: "femoral" },
+    { name: "Curl femoral", target: "femoral" },
+    { name: "Hip thrust", target: "gluteo" },
+    { name: "Buenos días", target: "femoral" },
+    { name: "Puente de glúteo", target: "gluteo" },
+    { name: "Elevación de pantorrilla sentado", target: "pantorrilla" }
+  ],
+  espalda: [
+    { name: "Dominadas", target: "espalda" },
+    { name: "Jalón al pecho", target: "espalda" },
+    { name: "Remo con barra", target: "espalda" },
+    { name: "Remo con mancuerna", target: "espalda" },
+    { name: "Pullover", target: "espalda" },
+    { name: "Face pull", target: "hombro" }
+  ],
+  brazo: [
+    { name: "Curl de bíceps", target: "biceps" },
+    { name: "Curl martillo", target: "biceps" },
+    { name: "Extensión de tríceps", target: "triceps" },
+    { name: "Fondos", target: "triceps" },
+    { name: "Press militar", target: "hombro" },
+    { name: "Elevaciones laterales", target: "hombro" }
+  ],
+  pecho: [
+    { name: "Press banca", target: "pecho" },
+    { name: "Press inclinado", target: "pecho" },
+    { name: "Aperturas con mancuerna", target: "pecho" },
+    { name: "Flexiones", target: "pecho" },
+    { name: "Press en máquina", target: "pecho" }
+  ],
+  abdomen: [
+    { name: "Crunch", target: "abdomen" },
+    { name: "Elevaciones de piernas", target: "abdomen" },
+    { name: "Plancha", target: "abdomen" },
+    { name: "Russian twist", target: "abdomen" },
+    { name: "Ab wheel", target: "abdomen" }
+  ]
+};
 
 const state = loadState();
 
@@ -18,6 +75,7 @@ const overviewCenterScore = document.getElementById("overviewCenterScore");
 const dashboardHabitScore = document.getElementById("dashboardHabitScore");
 const dashboardBalanceValue = document.getElementById("dashboardBalanceValue");
 const dashboardFinanceScore = document.getElementById("dashboardFinanceScore");
+const dashboardTrainingScore = document.getElementById("dashboardTrainingScore");
 const dashboardMainFocus = document.getElementById("dashboardMainFocus");
 const dashboardInsights = document.getElementById("dashboardInsights");
 const emptyStateTemplate = document.getElementById("emptyStateTemplate");
@@ -55,6 +113,32 @@ const financePieCanvas = document.getElementById("financePieCanvas");
 const financePieCtx = financePieCanvas.getContext("2d");
 const financeLegend = document.getElementById("financeLegend");
 const financeEmptyStateTemplate = document.getElementById("financeEmptyStateTemplate");
+const trainingProfileForm = document.getElementById("trainingProfileForm");
+const trainingWeight = document.getElementById("trainingWeight");
+const trainingHeight = document.getElementById("trainingHeight");
+const trainingDays = document.getElementById("trainingDays");
+const trainingMinutes = document.getElementById("trainingMinutes");
+const trainingScore = document.getElementById("trainingScore");
+const trainingBmi = document.getElementById("trainingBmi");
+const trainingWeeklyMinutes = document.getElementById("trainingWeeklyMinutes");
+const trainingNavLinks = [...document.querySelectorAll(".training-nav-link")];
+const trainingViews = [...document.querySelectorAll(".training-view")];
+const routineLibraryGroup = document.getElementById("routineLibraryGroup");
+const routineSearch = document.getElementById("routineSearch");
+const routineQuickDay = document.getElementById("routineQuickDay");
+const routineExerciseLibrary = document.getElementById("routineExerciseLibrary");
+const routineDropzones = [...document.querySelectorAll(".routine-dropzone")];
+const trainingLogForm = document.getElementById("trainingLogForm");
+const trainingLogDate = document.getElementById("trainingLogDate");
+const trainingLogGroup = document.getElementById("trainingLogGroup");
+const trainingLogExercise = document.getElementById("trainingLogExercise");
+const trainingLogReps = document.getElementById("trainingLogReps");
+const trainingLogWeight = document.getElementById("trainingLogWeight");
+const trainingLogDuration = document.getElementById("trainingLogDuration");
+const trainingLogTableBody = document.getElementById("trainingLogTableBody");
+const bodyMap = document.getElementById("bodyMap");
+const trainingInsights = document.getElementById("trainingInsights");
+const stepperButtons = [...document.querySelectorAll(".stepper-button")];
 
 const monthFormatter = new Intl.DateTimeFormat("es-MX", { month: "long" });
 const dayFormatter = new Intl.DateTimeFormat("es-MX", { weekday: "short" });
@@ -69,6 +153,7 @@ const currencyFormatter = new Intl.NumberFormat("es-MX", {
   currency: "MXN",
   maximumFractionDigits: 2
 });
+let activeRoutineDrag = null;
 
 initialize();
 
@@ -102,6 +187,27 @@ function attachEvents() {
   financeType.addEventListener("change", syncFinanceForm);
   saveBaseAmountButton.addEventListener("click", handleBaseAmountSave);
   toggleMoneyVisibility.addEventListener("click", handleMoneyVisibilityToggle);
+  trainingProfileForm.addEventListener("submit", handleTrainingProfileSubmit);
+  trainingLogForm.addEventListener("submit", handleTrainingLogSubmit);
+  trainingLogGroup.addEventListener("change", syncTrainingExerciseOptions);
+  routineLibraryGroup.addEventListener("change", renderRoutineBuilder);
+  routineSearch.addEventListener("input", renderRoutineBuilder);
+  routineQuickDay.addEventListener("change", renderRoutineBuilder);
+  routineExerciseLibrary.addEventListener("click", handleRoutineLibraryClick);
+  routineExerciseLibrary.addEventListener("dragstart", handleRoutineDragStart);
+  routineExerciseLibrary.addEventListener("dragend", clearRoutineDragState);
+  routineDropzones.forEach((dropzone) => {
+    dropzone.addEventListener("dragover", handleRoutineDragOver);
+    dropzone.addEventListener("dragenter", handleRoutineDragEnter);
+    dropzone.addEventListener("dragleave", handleRoutineDragLeave);
+    dropzone.addEventListener("drop", handleRoutineDrop);
+  });
+  trainingNavLinks.forEach((link) => {
+    link.addEventListener("click", () => setTrainingView(link.dataset.trainingView));
+  });
+  stepperButtons.forEach((button) => {
+    button.addEventListener("click", handleStepperClick);
+  });
 }
 
 function loadState() {
@@ -145,8 +251,51 @@ function createEmptyMonthData() {
     habits: [],
     entries: {},
     finances: [],
-    baseAmount: 0
+    baseAmount: 0,
+    training: {
+      profile: { weight: 0, height: 0, daysPerWeek: 0, minutesPerSession: 0 },
+      routine: createEmptyRoutineSchedule(),
+      logs: []
+    }
   };
+}
+
+function createEmptyRoutineSchedule() {
+  return ROUTINE_DAYS.reduce((acc, day) => {
+    acc[day.key] = [];
+    return acc;
+  }, {});
+}
+
+function normalizeRoutineData(rawRoutine) {
+  const schedule = createEmptyRoutineSchedule();
+  if (Array.isArray(rawRoutine)) {
+    schedule.monday = rawRoutine.map((item) => ({
+      id: item.id || createId(),
+      group: item.group || "general",
+      target: normalizeRoutineTarget(item.target || item.subgroup || mapGroupToPrimaryTarget(item.group)),
+      exercise: item.exercise || "Ejercicio",
+      sourceId: `${item.group || "general"}::${item.exercise || "Ejercicio"}`
+    }));
+    return schedule;
+  }
+
+  if (!rawRoutine || typeof rawRoutine !== "object") {
+    return schedule;
+  }
+
+  ROUTINE_DAYS.forEach((day) => {
+    const items = Array.isArray(rawRoutine[day.key]) ? rawRoutine[day.key] : [];
+    schedule[day.key] = items.map((item) => ({
+      id: item.id || createId(),
+      group: item.group || "general",
+      target: normalizeRoutineTarget(item.target || mapGroupToPrimaryTarget(item.group)),
+      exercise: item.exercise || "Ejercicio",
+      sourceId: item.sourceId || `${item.group || "general"}::${item.exercise || "Ejercicio"}`
+    }));
+  });
+
+  return schedule;
 }
 
 function normalizeMonthData(rawMonthData, currentMonthKey) {
@@ -158,7 +307,17 @@ function normalizeMonthData(rawMonthData, currentMonthKey) {
         habits: Array.isArray(monthState?.habits) ? monthState.habits : [],
         entries: monthState?.entries && typeof monthState.entries === "object" ? monthState.entries : {},
         finances: Array.isArray(monthState?.finances) ? monthState.finances : [],
-        baseAmount: Number(monthState?.baseAmount || 0)
+        baseAmount: Number(monthState?.baseAmount || 0),
+        training: {
+          profile: {
+            weight: Number(monthState?.training?.profile?.weight || 0),
+            height: Number(monthState?.training?.profile?.height || 0),
+            daysPerWeek: Number(monthState?.training?.profile?.daysPerWeek || 0),
+            minutesPerSession: Number(monthState?.training?.profile?.minutesPerSession || 0)
+          },
+          routine: normalizeRoutineData(monthState?.training?.routine),
+          logs: Array.isArray(monthState?.training?.logs) ? monthState.training.logs : []
+        }
       };
     });
   }
@@ -180,11 +339,84 @@ function ensureMonthState(monthKey) {
   if (!state.monthData[monthKey]) {
     state.monthData[monthKey] = createEmptyMonthData();
   }
+
+  if (!state.monthData[monthKey].training) {
+    state.monthData[monthKey].training = {
+      profile: { weight: 0, height: 0, daysPerWeek: 0, minutesPerSession: 0 },
+      routine: createEmptyRoutineSchedule(),
+      logs: []
+    };
+  }
+
+  state.monthData[monthKey].training.routine = normalizeRoutineData(state.monthData[monthKey].training.routine);
 }
 
 function getCurrentMonthState() {
   ensureMonthState(state.selectedMonthKey);
   return state.monthData[state.selectedMonthKey];
+}
+
+function getRoutineSchedule() {
+  return getCurrentMonthState().training.routine;
+}
+
+function getRoutineLibraryExercises() {
+  return Object.entries(EXERCISE_LIBRARY).flatMap(([group, exercises]) =>
+    exercises.map((exercise) => ({
+      id: `${group}::${exercise.name}`,
+      group,
+      exercise: exercise.name,
+      target: exercise.target
+    }))
+  );
+}
+
+function getDefaultRoutineDay() {
+  const weekday = new Date().getDay();
+  const map = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  return map[weekday] || "monday";
+}
+
+function getRoutineDayLabel(dayKey) {
+  return ROUTINE_DAYS.find((day) => day.key === dayKey)?.label || dayKey;
+}
+
+function normalizeRoutineTarget(target) {
+  const validTargets = new Set(["cuadriceps", "femoral", "gluteo", "pantorrilla", "espalda", "biceps", "triceps", "hombro", "pecho", "abdomen", "general"]);
+  return validTargets.has(target) ? target : "general";
+}
+
+function findLibraryExerciseById(sourceId) {
+  return getRoutineLibraryExercises().find((exercise) => exercise.id === sourceId) || null;
+}
+
+function getRoutineInsertIndex(container, clientY) {
+  const cards = [...container.querySelectorAll(".routine-card")].filter((card) => card.dataset.dragging !== "true");
+  const nextCard = cards.find((card) => clientY < card.getBoundingClientRect().top + (card.getBoundingClientRect().height / 2));
+  return nextCard ? cards.indexOf(nextCard) : cards.length;
+}
+
+function insertRoutineItem(schedule, dayKey, item, index) {
+  const dayItems = schedule[dayKey] || [];
+  const safeIndex = Math.max(0, Math.min(index, dayItems.length));
+  dayItems.splice(safeIndex, 0, item);
+  schedule[dayKey] = dayItems;
+}
+
+function moveRoutineItem(sourceDay, itemId, targetDay, targetIndex) {
+  const schedule = getRoutineSchedule();
+  const sourceItems = schedule[sourceDay] || [];
+  const sourceIndex = sourceItems.findIndex((item) => item.id === itemId);
+  if (sourceIndex === -1) {
+    return;
+  }
+
+  const [movedItem] = sourceItems.splice(sourceIndex, 1);
+  let nextIndex = targetIndex;
+  if (sourceDay === targetDay && sourceIndex < targetIndex) {
+    nextIndex -= 1;
+  }
+  insertRoutineItem(schedule, targetDay, movedItem, nextIndex);
 }
 
 function getSelectedPeriod() {
@@ -240,6 +472,7 @@ function setActiveSection(sectionId) {
   saveState();
   sectionLabel.textContent =
     sectionId === "balance" ? "Saldo actual" :
+    sectionId === "training" ? "Entrenamiento" :
     sectionId === "habits" ? "Habit tracker" :
     "Dashboard";
 
@@ -255,6 +488,8 @@ function setActiveSection(sectionId) {
 
   if (sectionId === "balance") {
     renderFinancePie();
+  } else if (sectionId === "training") {
+    renderTraining();
   } else if (sectionId === "dashboard") {
     renderOverview();
   } else {
@@ -275,6 +510,7 @@ function render() {
   setActiveSection(state.activeSection || "dashboard");
   renderHabits();
   renderFinance();
+  renderTraining();
   renderOverview();
   syncFinanceForm();
   renderMoneyVisibility();
@@ -804,12 +1040,13 @@ function renderOverview() {
   const completed = monthState.habits.reduce((count, habit) => count + Object.keys(monthState.entries[habit.id] || {}).length, 0);
   const habitPercent = totalSlots ? Math.round((completed / totalSlots) * 100) : 0;
   const financeStats = getFinanceStats();
+  const trainingStats = getTrainingStats();
   const areas = [
-    { label: "Hábitos", value: habitPercent },
+    { label: "Habitos", value: habitPercent },
     { label: "Finanzas", value: financeStats.health },
+    { label: "Entrenamiento", value: trainingStats.score },
     { label: "Ahorro", value: financeStats.savingsScore },
-    { label: "Energía", value: habitPercent > 0 ? Math.max(20, Math.round(habitPercent * 0.9)) : 0 },
-    { label: "Estabilidad", value: Math.round((habitPercent + financeStats.health) / 2) }
+    { label: "Estabilidad", value: Math.round((habitPercent + financeStats.health + trainingStats.score) / 3) }
   ];
   const overall = Math.round(areas.reduce((sum, area) => sum + area.value, 0) / areas.length);
   const weakest = [...areas].sort((a, b) => a.value - b.value)[0];
@@ -818,6 +1055,7 @@ function renderOverview() {
   overviewScore.textContent = `${overall}%`;
   overviewCenterScore.textContent = `${overall}%`;
   dashboardMainFocus.textContent = weakest.label;
+  dashboardTrainingScore.textContent = `${trainingStats.score}%`;
   drawOverviewRadar(areas.map((area) => area.label), areas.map((area) => area.value));
   renderDashboardInsights(areas, strongest, weakest);
 }
@@ -832,6 +1070,446 @@ function getFinanceStats() {
   const health = incomeTotal > 0 ? Math.max(0, Math.min(100, Math.round((balance / incomeTotal) * 100))) : 0;
   const savingsScore = incomeTotal > 0 ? Math.max(0, Math.min(100, Math.round(((incomeTotal - expenseTotal) / incomeTotal) * 100))) : 0;
   return { incomeTotal, expenseTotal, balance, health, savingsScore };
+}
+
+function getTrainingStats() {
+  const training = getCurrentMonthState().training;
+  const weight = Number(training.profile.weight || 0);
+  const heightCm = Number(training.profile.height || 0);
+  const weeklyMinutes = Number(training.profile.daysPerWeek || 0) * Number(training.profile.minutesPerSession || 0);
+  const bmi = weight > 0 && heightCm > 0 ? weight / Math.pow(heightCm / 100, 2) : 0;
+  const loadScore = training.logs.reduce((sum, log) => sum + (Number(log.reps || 0) * Number(log.weight || 0)), 0);
+  const score = Math.max(0, Math.min(100, Math.round((weeklyMinutes / 5) + Math.min(loadScore / 40, 40))));
+  return { bmi, weeklyMinutes, score };
+}
+
+function renderTraining() {
+  const training = getCurrentMonthState().training;
+  trainingWeight.value = training.profile.weight || "";
+  trainingHeight.value = training.profile.height || "";
+  trainingDays.value = training.profile.daysPerWeek || "";
+  trainingMinutes.value = training.profile.minutesPerSession || "";
+  if (!routineQuickDay.value) {
+    routineQuickDay.value = getDefaultRoutineDay();
+  }
+  if (!trainingLogDate.value) {
+    trainingLogDate.value = toIsoDate(new Date());
+  }
+  syncTrainingExerciseOptions();
+
+  const stats = getTrainingStats();
+  trainingScore.textContent = `${stats.score}%`;
+  trainingBmi.textContent = stats.bmi ? stats.bmi.toFixed(1) : "0.0";
+  trainingWeeklyMinutes.textContent = String(stats.weeklyMinutes);
+  renderRoutineBuilder();
+  renderTrainingLogTable();
+  renderBodyMap();
+  renderTrainingInsights(stats);
+  setTrainingView(document.querySelector(".training-nav-link.is-active")?.dataset.trainingView || "profile");
+}
+
+function setTrainingView(viewId) {
+  trainingNavLinks.forEach((link) => {
+    link.classList.toggle("is-active", link.dataset.trainingView === viewId);
+  });
+  trainingViews.forEach((view) => {
+    view.classList.toggle("is-active", view.dataset.trainingView === viewId);
+  });
+}
+
+function handleTrainingProfileSubmit(event) {
+  event.preventDefault();
+  const profile = getCurrentMonthState().training.profile;
+  profile.weight = Number(trainingWeight.value || 0);
+  profile.height = Number(trainingHeight.value || 0);
+  profile.daysPerWeek = Number(trainingDays.value || 0);
+  profile.minutesPerSession = Number(trainingMinutes.value || 0);
+  saveState();
+  renderTraining();
+  renderOverview();
+}
+
+function renderRoutineBuilder() {
+  renderRoutineLibrary();
+  renderRoutineWeek();
+}
+
+function renderRoutineLibrary() {
+  const selectedGroup = routineLibraryGroup.value || "all";
+  const searchTerm = routineSearch.value.trim().toLowerCase();
+  const exercises = getRoutineLibraryExercises().filter((exercise) => {
+    const matchesGroup = selectedGroup === "all" || exercise.group === selectedGroup;
+    const matchesSearch = !searchTerm
+      || exercise.exercise.toLowerCase().includes(searchTerm)
+      || formatTrainingTarget(exercise.target).toLowerCase().includes(searchTerm)
+      || formatTrainingGroup(exercise.group).toLowerCase().includes(searchTerm);
+    return matchesGroup && matchesSearch;
+  });
+
+  routineExerciseLibrary.innerHTML = "";
+  if (!exercises.length) {
+    routineExerciseLibrary.innerHTML = '<p class="empty-state">No hay ejercicios que coincidan con tu búsqueda.</p>';
+    return;
+  }
+
+  exercises.forEach((exercise) => {
+    const item = document.createElement("article");
+    item.className = "routine-library-item";
+    item.setAttribute("draggable", "true");
+    item.dataset.libraryExercise = exercise.id;
+    item.innerHTML = `
+      <div class="routine-library-copy">
+        <span class="routine-chip">${escapeHtml(formatTrainingGroup(exercise.group))}</span>
+        <strong>${escapeHtml(exercise.exercise)}</strong>
+        <span>${escapeHtml(formatTrainingTarget(exercise.target))}</span>
+      </div>
+      <button class="routine-add-button" type="button" data-library-add="${escapeHtml(exercise.id)}">
+        Agregar
+      </button>
+    `;
+    routineExerciseLibrary.appendChild(item);
+  });
+}
+
+function renderRoutineWeek() {
+  const schedule = getRoutineSchedule();
+  routineDropzones.forEach((dropzone) => {
+    const dayKey = dropzone.dataset.routineDay;
+    const dayItems = schedule[dayKey] || [];
+    dropzone.innerHTML = "";
+
+    if (!dayItems.length) {
+      dropzone.innerHTML = `<div class="routine-placeholder">Suelta aquí tus ejercicios de ${escapeHtml(getRoutineDayLabel(dayKey).toLowerCase())}.</div>`;
+    }
+
+    dayItems.forEach((item, index) => {
+      const card = document.createElement("article");
+      card.className = "routine-card";
+      card.setAttribute("draggable", "true");
+      card.dataset.routineItemId = item.id;
+      card.innerHTML = `
+        <div class="routine-card-copy">
+          <span>${escapeHtml(formatTrainingTarget(item.target))}</span>
+          <strong>${index + 1}. ${escapeHtml(item.exercise)}</strong>
+          <small>${escapeHtml(formatTrainingGroup(item.group))}</small>
+        </div>
+        <button class="routine-card-delete" type="button" aria-label="Eliminar ${escapeHtml(item.exercise)}">×</button>
+      `;
+      card.addEventListener("dragstart", handleRoutineDragStart);
+      card.addEventListener("dragend", clearRoutineDragState);
+      card.querySelector(".routine-card-delete").addEventListener("click", () => {
+        const nextItems = (schedule[dayKey] || []).filter((entry) => entry.id !== item.id);
+        schedule[dayKey] = nextItems;
+        saveState();
+        renderRoutineWeek();
+      });
+      dropzone.appendChild(card);
+    });
+  });
+}
+
+function handleRoutineLibraryClick(event) {
+  const button = event.target.closest("[data-library-add]");
+  if (!button) {
+    return;
+  }
+
+  const exercise = findLibraryExerciseById(button.dataset.libraryAdd);
+  if (!exercise) {
+    return;
+  }
+
+  addExerciseToRoutineDay(exercise, routineQuickDay.value || getDefaultRoutineDay());
+}
+
+function addExerciseToRoutineDay(exercise, dayKey, insertIndex) {
+  const schedule = getRoutineSchedule();
+  insertRoutineItem(schedule, dayKey, {
+    id: createId(),
+    group: exercise.group,
+    target: exercise.target,
+    exercise: exercise.exercise,
+    sourceId: exercise.id
+  }, insertIndex ?? (schedule[dayKey]?.length || 0));
+  saveState();
+  renderRoutineWeek();
+}
+
+function handleTrainingLogSubmit(event) {
+  event.preventDefault();
+  if (!trainingLogExercise.value) {
+    return;
+  }
+  const selectedExercise = getSelectedExerciseMeta();
+  getCurrentMonthState().training.logs.push({
+    id: createId(),
+    date: trainingLogDate.value || toIsoDate(new Date()),
+    group: trainingLogGroup.value,
+    exercise: selectedExercise.name,
+    target: selectedExercise.target,
+    reps: Number(trainingLogReps.value || 0),
+    weight: Number(trainingLogWeight.value || 0),
+    duration: Number(trainingLogDuration.value || 0)
+  });
+  trainingLogForm.reset();
+  trainingLogDate.value = toIsoDate(new Date());
+  syncTrainingExerciseOptions();
+  saveState();
+  renderTraining();
+  renderOverview();
+}
+
+function handleRoutineDragStart(event) {
+  const libraryItem = event.target.closest("[data-library-exercise]");
+  const routineCard = event.target.closest("[data-routine-item-id]");
+  if (libraryItem) {
+    const exercise = findLibraryExerciseById(libraryItem.dataset.libraryExercise);
+    if (!exercise) {
+      return;
+    }
+    activeRoutineDrag = { type: "library", exercise };
+    libraryItem.classList.add("is-dragging");
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData("text/plain", exercise.id);
+    }
+    return;
+  }
+
+  if (!routineCard) {
+    return;
+  }
+
+  const dayKey = routineCard.closest(".routine-dropzone")?.dataset.routineDay;
+  if (!dayKey) {
+    return;
+  }
+
+  activeRoutineDrag = { type: "routine", dayKey, itemId: routineCard.dataset.routineItemId };
+  routineCard.dataset.dragging = "true";
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", routineCard.dataset.routineItemId || "");
+  }
+}
+
+function handleRoutineDragEnter(event) {
+  const dropzone = event.currentTarget;
+  if (activeRoutineDrag) {
+    dropzone.classList.add("is-drag-over");
+  }
+}
+
+function handleRoutineDragLeave(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    event.currentTarget.classList.remove("is-drag-over");
+  }
+}
+
+function handleRoutineDragOver(event) {
+  if (!activeRoutineDrag) {
+    return;
+  }
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = activeRoutineDrag.type === "library" ? "copy" : "move";
+  }
+}
+
+function handleRoutineDrop(event) {
+  event.preventDefault();
+  const dropzone = event.currentTarget;
+  dropzone.classList.remove("is-drag-over");
+  if (!activeRoutineDrag) {
+    return;
+  }
+
+  const dayKey = dropzone.dataset.routineDay;
+  const insertIndex = getRoutineInsertIndex(dropzone, event.clientY);
+  if (activeRoutineDrag.type === "library") {
+    addExerciseToRoutineDay(activeRoutineDrag.exercise, dayKey, insertIndex);
+  } else {
+    moveRoutineItem(activeRoutineDrag.dayKey, activeRoutineDrag.itemId, dayKey, insertIndex);
+    saveState();
+    renderRoutineWeek();
+  }
+
+  clearRoutineDragState();
+}
+
+function clearRoutineDragState() {
+  activeRoutineDrag = null;
+  document.querySelectorAll(".routine-dropzone").forEach((dropzone) => {
+    dropzone.classList.remove("is-drag-over");
+  });
+  document.querySelectorAll("[data-routine-item-id]").forEach((card) => {
+    delete card.dataset.dragging;
+  });
+  document.querySelectorAll(".routine-library-item").forEach((item) => {
+    item.classList.remove("is-dragging");
+  });
+}
+
+function renderTrainingLogTable() {
+  const body = trainingLogTableBody;
+  body.innerHTML = "";
+  const logs = [...getCurrentMonthState().training.logs].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  if (!logs.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">Aún no hay registros de entrenamiento.</td></tr>';
+    return;
+  }
+  logs.forEach((log) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(log.exercise)}</td>
+      <td>${escapeHtml(formatTrainingGroup(log.group))}</td>
+      <td>${formatShortDate(log.date)}</td>
+      <td>${log.reps}</td>
+      <td>${log.weight} kg</td>
+      <td>${log.duration || 0} min</td>
+      <td><button class="habit-delete" type="button" aria-label="Eliminar ${escapeHtml(log.exercise)}">×</button></td>
+    `;
+    row.querySelector(".habit-delete").addEventListener("click", () => {
+      const training = getCurrentMonthState().training;
+      training.logs = training.logs.filter((item) => item.id !== log.id);
+      saveState();
+      renderTraining();
+      renderOverview();
+    });
+    body.appendChild(row);
+  });
+}
+
+function renderBodyMap() {
+  const weekly = getWeeklyTrainingLoadByTarget();
+  bodyMap.querySelectorAll(".body-zone").forEach((zone) => {
+    const key = zone.dataset.zone;
+    const load = weekly[key] || 0;
+    zone.style.fill = load > 0 ? getBodyHeatColor(load) : "rgba(255,255,255,0.08)";
+    zone.style.stroke = "rgba(255,255,255,0.12)";
+    zone.style.strokeWidth = "2";
+  });
+}
+
+function getWeeklyTrainingLoadByTarget() {
+  const logs = getCurrentMonthState().training.logs;
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  return logs.reduce((acc, log) => {
+    const logDate = new Date(`${log.date}T12:00:00`);
+    if (logDate < weekAgo) {
+      return acc;
+    }
+    const key = log.target || mapGroupToPrimaryTarget(log.group);
+    const load = (Number(log.reps || 0) * Math.max(Number(log.weight || 0), 1)) + (Number(log.duration || 0) * 4);
+    acc[key] = (acc[key] || 0) + load;
+    return acc;
+  }, {});
+}
+
+function getBodyHeatColor(load) {
+  if (load > 900) return "#ff2a2a";
+  if (load > 500) return "#ff7a2a";
+  if (load > 250) return "#ffd12a";
+  return "#ffb3b3";
+}
+
+function renderTrainingInsights(stats) {
+  const weekly = getWeeklyTrainingLoadByTarget();
+  const topGroup = Object.entries(weekly).sort((a, b) => b[1] - a[1])[0];
+  const weakGroup = ["cuadriceps", "femoral", "gluteo", "pantorrilla", "espalda", "biceps", "triceps", "hombro", "pecho", "abdomen"]
+    .map((group) => [group, weekly[group] || 0])
+    .sort((a, b) => a[1] - b[1])[0];
+
+  trainingInsights.innerHTML = "";
+  const items = [
+    `IMC actual: ${stats.bmi ? stats.bmi.toFixed(1) : "0.0"}.`,
+    `Trabajo dominante de la semana: ${topGroup ? formatTrainingTarget(topGroup[0]) : "Sin registros"}.`,
+    `Zona a reforzar: ${weakGroup ? formatTrainingTarget(weakGroup[0]) : "Sin registros"}.`
+  ];
+  items.forEach((text) => {
+    const item = document.createElement("div");
+    item.className = "finance-legend-item";
+    item.innerHTML = `
+      <span class="legend-dot" style="background:#ff2a2a"></span>
+      <span>Entrenamiento</span>
+      <strong>${escapeHtml(text)}</strong>
+    `;
+    trainingInsights.appendChild(item);
+  });
+}
+
+function formatTrainingGroup(group) {
+  const map = {
+    "pierna-anterior": "Pierna anterior",
+    "pierna-posterior": "Pierna posterior",
+    espalda: "Espalda",
+    brazo: "Brazo",
+    pecho: "Pecho",
+    abdomen: "Abdomen"
+  };
+  return map[group] || group;
+}
+
+function formatTrainingTarget(target) {
+  const map = {
+    cuadriceps: "Cuadriceps",
+    femoral: "Femoral",
+    gluteo: "Gluteo",
+    pantorrilla: "Pantorrilla",
+    espalda: "Espalda",
+    biceps: "Biceps",
+    triceps: "Triceps",
+    hombro: "Hombro",
+    pecho: "Pecho",
+    abdomen: "Abdomen",
+    general: "General"
+  };
+  return map[target] || target;
+}
+
+function syncTrainingExerciseOptions() {
+  const options = EXERCISE_LIBRARY[trainingLogGroup.value] || [];
+  trainingLogExercise.innerHTML = "";
+  options.forEach((exercise) => {
+    const option = document.createElement("option");
+    option.value = exercise.name;
+    option.textContent = `${exercise.name} · ${formatTrainingTarget(exercise.target)}`;
+    option.dataset.target = exercise.target;
+    trainingLogExercise.appendChild(option);
+  });
+}
+
+function getSelectedExerciseMeta() {
+  const options = EXERCISE_LIBRARY[trainingLogGroup.value] || [];
+  return options.find((item) => item.name === trainingLogExercise.value) || {
+    name: trainingLogExercise.value,
+    target: mapGroupToPrimaryTarget(trainingLogGroup.value)
+  };
+}
+
+function mapGroupToPrimaryTarget(group) {
+  const map = {
+    "pierna-anterior": "cuadriceps",
+    "pierna-posterior": "femoral",
+    espalda: "espalda",
+    brazo: "biceps",
+    pecho: "pecho",
+    abdomen: "abdomen"
+  };
+  return map[group] || "general";
+}
+
+function handleStepperClick(event) {
+  const targetId = event.currentTarget.dataset.target;
+  const step = Number(event.currentTarget.dataset.step || 0);
+  const input = document.getElementById(targetId);
+  if (!input) {
+    return;
+  }
+  const current = Number(input.value || 0);
+  const next = Math.max(Number(input.min || 0), current + step);
+  input.value = String(next);
 }
 
 function drawOverviewRadar(labels, values) {

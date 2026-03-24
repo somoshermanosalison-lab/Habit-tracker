@@ -179,6 +179,30 @@ button {
   display: block;
 }
 
+.training-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.training-nav-link {
+  min-height: 3rem;
+  min-width: 8.5rem;
+  padding: 0.8rem 1.1rem;
+  border: 1px solid rgba(255, 42, 42, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.training-nav-link.is-active {
+  background: rgba(255, 42, 42, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.16);
+}
+
 .hero,
 .dashboard {
   display: grid;
@@ -280,6 +304,15 @@ h2 {
 
 .is-hidden {
   display: none !important;
+}
+
+.training-view {
+  display: none;
+}
+
+.training-view.is-active {
+  display: block;
+  min-width: 0;
 }
 
 .overview-panel {
@@ -400,6 +433,243 @@ h2 {
   margin-top: auto;
 }
 
+.stepper-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.stepper-button {
+  width: 2.5rem;
+  height: 2.75rem;
+  border: 1px solid rgba(255, 42, 42, 0.2);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+/* Weekly routine builder keeps the drag-and-drop planner usable on desktop and mobile */
+.routine-builder {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.routine-library-panel,
+.routine-board-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.routine-toolbar {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.routine-toolbar label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.routine-library-note {
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 42, 42, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+}
+
+.routine-library-note p {
+  margin: 0;
+}
+
+.routine-library-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.routine-library-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.42rem;
+  padding: 0.58rem 0.62rem;
+  border: 1px solid rgba(255, 42, 42, 0.14);
+  border-radius: 0.8rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 42, 42, 0.04)),
+    rgba(15, 15, 15, 0.92);
+  box-shadow: 0 0 18px rgba(255, 42, 42, 0.08);
+  cursor: grab;
+  min-width: 0;
+}
+
+.routine-library-item.is-dragging {
+  opacity: 0.45;
+}
+
+.routine-library-copy {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.routine-library-copy strong,
+.routine-card-copy strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.routine-library-copy span:last-child,
+.routine-card-copy span,
+.routine-card-copy small {
+  color: var(--muted);
+}
+
+.routine-library-copy span:last-child {
+  font-size: 0.74rem;
+}
+
+.routine-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 1.45rem;
+  padding: 0.1rem 0.46rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 42, 42, 0.16);
+  background: rgba(255, 42, 42, 0.1);
+  color: #ffffff !important;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.routine-add-button,
+.routine-card-delete {
+  min-height: 2rem;
+  padding: 0.44rem 0.7rem;
+  border: 1px solid rgba(255, 42, 42, 0.22);
+  border-radius: 0.95rem;
+  background: rgba(255, 42, 42, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.routine-add-button {
+  font-size: 0.8rem;
+}
+
+.routine-board-heading {
+  margin-bottom: 0;
+}
+
+.routine-week-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
+}
+
+.routine-day-panel {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 42, 42, 0.1);
+  border-radius: 1rem;
+  background: rgba(8, 8, 8, 0.9);
+  min-width: 0;
+}
+
+.routine-day-header {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.85rem;
+  background: #050505;
+  color: #ffffff;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.14);
+}
+
+.routine-dropzone {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  min-height: 10rem;
+  padding: 0.1rem;
+  border-radius: 0.95rem;
+  transition: background 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.routine-dropzone.is-drag-over {
+  background: rgba(255, 42, 42, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.2);
+}
+
+.routine-placeholder {
+  min-height: 6.5rem;
+  display: grid;
+  place-items: center;
+  padding: 0.85rem;
+  border: 1px dashed rgba(255, 42, 42, 0.18);
+  border-radius: 1rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.45;
+  font-size: 0.88rem;
+}
+
+.routine-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 42, 42, 0.16);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(180deg, rgba(255, 42, 42, 0.14), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 18px rgba(255, 42, 42, 0.1);
+  cursor: grab;
+}
+
+.routine-card-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.routine-card-copy strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.routine-card-copy span {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ffb3b3;
+}
+
+.routine-card-copy small {
+  font-size: 0.78rem;
+}
+
+.routine-card-delete {
+  min-width: 2.2rem;
+  padding-inline: 0.55rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .habit-form label,
 .calendar-controls label {
   display: grid;
@@ -409,7 +679,9 @@ h2 {
 
 /* Inputs are larger for thumb interaction and easier form use on phones */
 .habit-form input,
-.calendar-controls select {
+.calendar-controls select,
+.routine-toolbar input,
+.routine-toolbar select {
   width: 100%;
   min-height: 3.25rem;
   padding: 0.9rem 1rem;
@@ -430,7 +702,18 @@ h2 {
   box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.08);
 }
 
-.calendar-controls select option {
+.routine-toolbar select {
+  appearance: none;
+  -webkit-appearance: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 42, 42, 0.04)),
+    #050505;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.08);
+}
+
+.calendar-controls select option,
+.routine-toolbar select option {
   background: #120808;
   color: #ffffff;
 }
@@ -440,7 +723,9 @@ h2 {
 }
 
 .habit-form input:focus,
-.calendar-controls select:focus {
+.calendar-controls select:focus,
+.routine-toolbar input:focus,
+.routine-toolbar select:focus {
   border-color: rgba(255, 42, 42, 0.7);
   box-shadow: 0 0 0 4px rgba(255, 42, 42, 0.16);
 }
@@ -543,6 +828,30 @@ h2 {
 .finance-table th:first-child,
 .finance-table td:first-child {
   min-width: 9rem;
+}
+
+.body-map-wrap {
+  display: grid;
+  place-items: center;
+  min-height: 28rem;
+  border: 1px solid rgba(255, 42, 42, 0.16);
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.body-map {
+  width: min(100%, 18rem);
+  height: auto;
+}
+
+.body-neutral {
+  fill: rgba(255, 255, 255, 0.08);
+}
+
+.body-zone {
+  transition: fill 220ms ease;
 }
 
 /* Mobile table keeps horizontal scroll, snap-like spacing, and sticky context */
@@ -708,6 +1017,22 @@ h2 {
     align-items: end;
   }
 
+  .training-nav-link {
+    min-width: 9.5rem;
+  }
+
+  .routine-library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .routine-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .routine-week-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .habit-table {
     min-width: 48rem;
   }
@@ -745,6 +1070,15 @@ h2 {
     align-items: stretch;
   }
 
+  .training-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .training-dashboard .training-view[data-training-view="log"],
+  .training-dashboard .training-view[data-training-view="analysis"] {
+    grid-column: 1 / -1;
+  }
+
   .table-panel {
     grid-column: 1 / -1;
   }
@@ -763,6 +1097,31 @@ h2 {
   .pie-wrap {
     min-height: 19rem;
     aspect-ratio: 16 / 9;
+  }
+
+  .routine-builder {
+    grid-template-columns: minmax(16rem, 18rem) minmax(0, 1.7fr);
+    align-items: start;
+    gap: 1.25rem;
+  }
+
+  .routine-library-grid {
+    grid-template-columns: 1fr;
+    max-height: 42rem;
+    overflow: auto;
+    padding-right: 0.25rem;
+  }
+
+  .routine-week-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .body-map-wrap {
+    min-height: 32rem;
+  }
+
+  .body-map {
+    width: min(100%, 20rem);
   }
 
   .habit-table {
@@ -809,6 +1168,53 @@ h2 {
     display: grid;
     grid-template-columns: 15rem minmax(0, 1fr);
     align-items: start;
+  }
+
+  .training-nav-link {
+    min-width: 10.5rem;
+    padding-inline: 1.35rem;
+  }
+
+  .training-dashboard {
+    grid-template-columns: minmax(22rem, 25rem) minmax(0, 1fr);
+  }
+
+  .training-dashboard .training-view[data-training-view="profile"] {
+    grid-column: span 1;
+  }
+
+  .training-dashboard .training-view[data-training-view="routine"] {
+    grid-column: 1 / -1;
+  }
+
+  .training-dashboard .training-view[data-training-view="log"],
+  .training-dashboard .training-view[data-training-view="analysis"] {
+    grid-column: 1 / -1;
+  }
+
+  .body-map-wrap {
+    min-height: 36rem;
+  }
+
+  .body-map {
+    width: min(100%, 22rem);
+  }
+
+  .routine-builder {
+    grid-template-columns: minmax(17rem, 19rem) minmax(0, 2.2fr);
+    gap: 1.5rem;
+  }
+
+  .routine-dropzone {
+    min-height: 11rem;
+  }
+
+  .routine-week-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .routine-day-panel {
+    padding: 0.85rem;
   }
 
   .hero-card {
