@@ -1,4 +1,6 @@
 const STORAGE_KEY = "habit-tracker-wave-state-v2";
+const COOKIE_STATE_PREFIX = "habit-tracker-state-";
+const COOKIE_META_KEY = "habit-tracker-state-meta";
 const FINANCE_COLORS = ["#22c55e", "#3b82f6", "#8b5cf6", "#facc15", "#f97316", "#ec4899", "#06b6d4", "#84cc16"];
 const ROUTINE_DAYS = [
   { key: "monday", label: "Lunes" },
@@ -93,6 +95,9 @@ const menuBackdrop = document.getElementById("menuBackdrop");
 const menuLinks = [...document.querySelectorAll(".menu-link")];
 const sectionLabel = document.getElementById("currentSectionLabel");
 const appSections = [...document.querySelectorAll(".app-section")];
+const themeCards = [...document.querySelectorAll(".theme-card")];
+const activeThemeLabel = document.getElementById("activeThemeLabel");
+const appFooter = document.getElementById("appFooter");
 
 const financeForm = document.getElementById("financeForm");
 const financeType = document.getElementById("financeType");
@@ -154,6 +159,8 @@ const currencyFormatter = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 2
 });
 let activeRoutineDrag = null;
+let waveAnimationFrame = 0;
+let lastWaveSeries = [];
 
 initialize();
 
@@ -161,7 +168,9 @@ function initialize() {
   ensureSelectedPeriod();
   populateCalendarControls();
   ensureMonthState(state.selectedMonthKey);
+  applyTheme(state.theme || "neo-red");
   attachEvents();
+  initializeFooterReveal();
   render();
 }
 
@@ -171,7 +180,7 @@ function attachEvents() {
   monthSelect.addEventListener("change", handlePeriodChange);
   yearSelect.addEventListener("change", handlePeriodChange);
   window.addEventListener("resize", () => {
-    renderWave();
+    renderWave(false);
     renderFinancePie();
     renderOverview();
   });
@@ -181,6 +190,9 @@ function attachEvents() {
   menuBackdrop.addEventListener("click", () => toggleMenu(false));
   menuLinks.forEach((link) => {
     link.addEventListener("click", () => setActiveSection(link.dataset.section));
+  });
+  themeCards.forEach((card) => {
+    card.addEventListener("click", () => handleThemeChange(card.dataset.theme));
   });
 
   financeForm.addEventListener("submit", handleFinanceSubmit);
@@ -211,7 +223,7 @@ function attachEvents() {
 }
 
 function loadState() {
-  const stored = localStorage.getItem(STORAGE_KEY);
+  const stored = readPersistedState();
   const currentMonthKey = getMonthKeyFromDate(new Date());
 
   if (!stored) {
@@ -223,6 +235,7 @@ function loadState() {
     return {
       selectedMonthKey: parsed.selectedMonthKey || currentMonthKey,
       activeSection: parsed.activeSection || "dashboard",
+      theme: parsed.theme || "neo-red",
       moneyHidden: Boolean(parsed.moneyHidden),
       monthData: normalizeMonthData(parsed.monthData, currentMonthKey)
     };
@@ -235,6 +248,7 @@ function createInitialState(monthKey) {
   return {
     selectedMonthKey: monthKey,
     activeSection: "dashboard",
+    theme: "neo-red",
     moneyHidden: false,
     monthData: {
       [monthKey]: createEmptyMonthData()
@@ -242,8 +256,83 @@ function createInitialState(monthKey) {
   };
 }
 
+function readPersistedState() {
+  try {
+    const local = localStorage.getItem(STORAGE_KEY);
+    if (local) {
+      return local;
+    }
+  } catch (error) {
+    // Fall through to cookies when localStorage is unavailable.
+  }
+
+  return readStateCookies();
+}
+
+function writeStateCookies(serializedState) {
+  const encoded = encodeURIComponent(serializedState);
+  const chunkSize = 3000;
+  const nextChunks = Math.ceil(encoded.length / chunkSize);
+  const previousChunks = Number.parseInt(getCookie(COOKIE_META_KEY) || "0", 10) || 0;
+
+  for (let index = 0; index < nextChunks; index += 1) {
+    setCookie(
+      `${COOKIE_STATE_PREFIX}${index}`,
+      encoded.slice(index * chunkSize, (index + 1) * chunkSize)
+    );
+  }
+
+  for (let index = nextChunks; index < previousChunks; index += 1) {
+    deleteCookie(`${COOKIE_STATE_PREFIX}${index}`);
+  }
+
+  setCookie(COOKIE_META_KEY, String(nextChunks));
+}
+
+function readStateCookies() {
+  const chunkCount = Number.parseInt(getCookie(COOKIE_META_KEY) || "0", 10) || 0;
+  if (!chunkCount) {
+    return "";
+  }
+
+  let encoded = "";
+  for (let index = 0; index < chunkCount; index += 1) {
+    const chunk = getCookie(`${COOKIE_STATE_PREFIX}${index}`);
+    if (!chunk) {
+      return "";
+    }
+    encoded += chunk;
+  }
+
+  try {
+    return decodeURIComponent(encoded);
+  } catch (error) {
+    return "";
+  }
+}
+
+function setCookie(name, value) {
+  document.cookie = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
+function getCookie(name) {
+  const target = `${name}=`;
+  const match = document.cookie.split("; ").find((entry) => entry.startsWith(target));
+  return match ? match.slice(target.length) : "";
+}
+
+function deleteCookie(name) {
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+}
+
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const serialized = JSON.stringify(state);
+  try {
+    localStorage.setItem(STORAGE_KEY, serialized);
+  } catch (error) {
+    // Cookie backup below keeps the app usable even if localStorage is blocked.
+  }
+  writeStateCookies(serialized);
 }
 
 function createEmptyMonthData() {
@@ -471,6 +560,7 @@ function setActiveSection(sectionId) {
   state.activeSection = sectionId;
   saveState();
   sectionLabel.textContent =
+    sectionId === "customize" ? "Personalización" :
     sectionId === "balance" ? "Saldo actual" :
     sectionId === "training" ? "Entrenamiento" :
     sectionId === "habits" ? "Habit tracker" :
@@ -508,12 +598,69 @@ function toggleMenu(forceOpen) {
 function render() {
   syncCalendarControls();
   setActiveSection(state.activeSection || "dashboard");
+  updateThemeCards();
   renderHabits();
   renderFinance();
   renderTraining();
   renderOverview();
   syncFinanceForm();
   renderMoneyVisibility();
+}
+
+function handleThemeChange(themeId) {
+  state.theme = themeId || "neo-red";
+  saveState();
+  applyTheme(state.theme);
+  updateThemeCards();
+  renderWave(false);
+  renderFinancePie();
+  renderOverview();
+}
+
+function applyTheme(themeId) {
+  document.body.dataset.theme = themeId || "neo-red";
+  if (activeThemeLabel) {
+    activeThemeLabel.textContent = getThemeName(themeId);
+  }
+}
+
+function updateThemeCards() {
+  themeCards.forEach((card) => {
+    card.classList.toggle("is-active", card.dataset.theme === (state.theme || "neo-red"));
+  });
+  if (activeThemeLabel) {
+    activeThemeLabel.textContent = getThemeName(state.theme || "neo-red");
+  }
+}
+
+function getThemeName(themeId) {
+  const names = {
+    "neo-red": "Neón rojo",
+    light: "Claro",
+    dark: "Dark",
+    "sub-zero": "Sub-Zero",
+    violet: "Morado",
+    emerald: "Verde"
+  };
+  return names[themeId] || "Neón rojo";
+}
+
+function initializeFooterReveal() {
+  if (!appFooter) {
+    return;
+  }
+  if (!("IntersectionObserver" in window)) {
+    appFooter.classList.add("is-visible");
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        appFooter.classList.add("is-visible");
+      }
+    });
+  }, { threshold: 0.18 });
+  observer.observe(appFooter);
 }
 
 function renderHabits() {
@@ -677,7 +824,7 @@ function getCompletionForDate(isoDate) {
   return completedHabits / monthState.habits.length;
 }
 
-function renderWave() {
+function renderWave(animate = true) {
   const bounds = waveCanvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(waveCanvas.clientWidth || bounds.width));
   const height = Math.max(1, Math.round(waveCanvas.clientHeight || bounds.height));
@@ -687,19 +834,61 @@ function renderWave() {
   waveCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   const days = getMonthDays();
-  const completionByDay = days.map((day) => getCompletionForDate(day.isoDate));
-  drawLineChart(completionByDay, days, width, height);
+  const targetSeries = days.map((day) => getCompletionForDate(day.isoDate));
+  const previousSeries = buildWaveBaseline(lastWaveSeries, targetSeries.length);
+  lastWaveSeries = [...targetSeries];
+
+  if (waveAnimationFrame) {
+    window.cancelAnimationFrame(waveAnimationFrame);
+    waveAnimationFrame = 0;
+  }
+
+  if (!animate) {
+    drawLineChart(targetSeries, days, width, height);
+    return;
+  }
+
+  const start = performance.now();
+  const duration = 520;
+  const tick = (now) => {
+    const progress = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const currentSeries = targetSeries.map((value, index) => previousSeries[index] + ((value - previousSeries[index]) * eased));
+    drawLineChart(currentSeries, days, width, height);
+    if (progress < 1) {
+      waveAnimationFrame = window.requestAnimationFrame(tick);
+    } else {
+      waveAnimationFrame = 0;
+    }
+  };
+  waveAnimationFrame = window.requestAnimationFrame(tick);
+}
+
+function buildWaveBaseline(series, targetLength) {
+  if (!series.length) {
+    return Array.from({ length: targetLength }, () => 0);
+  }
+  if (series.length === targetLength) {
+    return [...series];
+  }
+  if (series.length > targetLength) {
+    return series.slice(0, targetLength);
+  }
+  return [...series, ...Array.from({ length: targetLength - series.length }, () => series[series.length - 1] || 0)];
 }
 
 function drawLineChart(completionByDay, days, width, height) {
   waveCtx.clearRect(0, 0, width, height);
+  const accent = getCssColor("--accent");
+  const accentSoft = getCssColor("--accent-soft");
+  const text = getCssColor("--text");
   const isCompact = width < 480;
   const padding = { top: 24, right: isCompact ? 10 : 18, bottom: isCompact ? 56 : 46, left: isCompact ? 34 : 42 };
   const chartWidth = Math.max(width - padding.left - padding.right, 1);
   const chartHeight = Math.max(height - padding.top - padding.bottom, 1);
 
   const bg = waveCtx.createLinearGradient(0, 0, 0, height);
-  bg.addColorStop(0, "rgba(255, 42, 42, 0.08)");
+  bg.addColorStop(0, withAlpha(accent, 0.12));
   bg.addColorStop(1, "rgba(255, 255, 255, 0.01)");
   waveCtx.fillStyle = bg;
   waveCtx.fillRect(0, 0, width, height);
@@ -714,7 +903,7 @@ function drawLineChart(completionByDay, days, width, height) {
     waveCtx.stroke();
   }
 
-  waveCtx.fillStyle = "rgba(255, 255, 255, 0.75)";
+  waveCtx.fillStyle = withAlpha(text, 0.75);
   waveCtx.font = "12px DM Sans";
   waveCtx.textAlign = "right";
   ["100%", "75%", "50%", "25%", "0%"].forEach((label, index) => {
@@ -733,8 +922,8 @@ function drawLineChart(completionByDay, days, width, height) {
   }
 
   const fill = waveCtx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-  fill.addColorStop(0, "rgba(255, 42, 42, 0.26)");
-  fill.addColorStop(1, "rgba(255, 42, 42, 0.02)");
+  fill.addColorStop(0, withAlpha(accent, 0.3));
+  fill.addColorStop(1, withAlpha(accent, 0.03));
   waveCtx.beginPath();
   points.forEach((point, index) => {
     if (index === 0) {
@@ -757,9 +946,9 @@ function drawLineChart(completionByDay, days, width, height) {
       waveCtx.lineTo(point.x, point.y);
     }
   });
-  waveCtx.strokeStyle = "#ff2a2a";
+  waveCtx.strokeStyle = accent;
   waveCtx.lineWidth = 3;
-  waveCtx.shadowColor = "rgba(255, 42, 42, 0.8)";
+  waveCtx.shadowColor = withAlpha(accentSoft, 0.75);
   waveCtx.shadowBlur = 12;
   waveCtx.stroke();
   waveCtx.shadowBlur = 0;
@@ -771,7 +960,7 @@ function drawLineChart(completionByDay, days, width, height) {
     waveCtx.fill();
 
     if (points.length <= 14 || index % (isCompact ? 4 : 2) === 0 || index === points.length - 1) {
-      waveCtx.fillStyle = "rgba(255, 255, 255, 0.75)";
+      waveCtx.fillStyle = withAlpha(text, 0.75);
       waveCtx.textAlign = "center";
       waveCtx.font = "11px DM Sans";
       waveCtx.fillText(String(point.day), point.x, height - 16);
@@ -790,14 +979,14 @@ function drawTodayMarker(days, points, padding, height) {
   const markerX = points[todayIndex].x;
   waveCtx.save();
   waveCtx.setLineDash([5, 5]);
-  waveCtx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+  waveCtx.strokeStyle = withAlpha(getCssColor("--text"), 0.8);
   waveCtx.lineWidth = 1.5;
   waveCtx.beginPath();
   waveCtx.moveTo(markerX, padding.top);
   waveCtx.lineTo(markerX, height - padding.bottom + 8);
   waveCtx.stroke();
   waveCtx.setLineDash([]);
-  waveCtx.fillStyle = "#ffffff";
+  waveCtx.fillStyle = getCssColor("--text");
   waveCtx.textAlign = "center";
   waveCtx.font = "700 11px DM Sans";
   waveCtx.fillText("Hoy", markerX, padding.top - 8);
@@ -1382,11 +1571,13 @@ function renderTrainingLogTable() {
 
 function renderBodyMap() {
   const weekly = getWeeklyTrainingLoadByTarget();
+  const baseColor = getCssColor("--text");
+  const isLightTheme = (document.body.dataset.theme || "neo-red") === "light";
   bodyMap.querySelectorAll(".body-zone").forEach((zone) => {
     const key = zone.dataset.zone;
     const load = weekly[key] || 0;
-    zone.style.fill = load > 0 ? getBodyHeatColor(load) : "rgba(255,255,255,0.08)";
-    zone.style.stroke = "rgba(255,255,255,0.12)";
+    zone.style.fill = load > 0 ? getBodyHeatColor(load) : withAlpha(baseColor, isLightTheme ? 0.1 : 0.08);
+    zone.style.stroke = withAlpha(baseColor, isLightTheme ? 0.24 : 0.12);
     zone.style.strokeWidth = "2";
   });
 }
@@ -1408,10 +1599,12 @@ function getWeeklyTrainingLoadByTarget() {
 }
 
 function getBodyHeatColor(load) {
-  if (load > 900) return "#ff2a2a";
-  if (load > 500) return "#ff7a2a";
-  if (load > 250) return "#ffd12a";
-  return "#ffb3b3";
+  const accent = getCssColor("--accent");
+  const accentSoft = getCssColor("--accent-soft");
+  if (load > 900) return accent;
+  if (load > 500) return accentSoft;
+  if (load > 250) return withAlpha(accent, 0.55);
+  return withAlpha(accentSoft, 0.38);
 }
 
 function renderTrainingInsights(stats) {
@@ -1431,7 +1624,7 @@ function renderTrainingInsights(stats) {
     const item = document.createElement("div");
     item.className = "finance-legend-item";
     item.innerHTML = `
-      <span class="legend-dot" style="background:#ff2a2a"></span>
+      <span class="legend-dot" style="background:${escapeHtml(getCssColor("--accent"))}"></span>
       <span>Entrenamiento</span>
       <strong>${escapeHtml(text)}</strong>
     `;
@@ -1513,6 +1706,11 @@ function handleStepperClick(event) {
 }
 
 function drawOverviewRadar(labels, values) {
+  const accent = getCssColor("--accent");
+  const accentSoft = getCssColor("--accent-soft");
+  const text = getCssColor("--text");
+  const muted = getCssColor("--muted");
+  const isLightTheme = (document.body.dataset.theme || "neo-red") === "light";
   const bounds = overviewRadarCanvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(overviewRadarCanvas.clientWidth || bounds.width));
   const height = Math.max(1, Math.round(overviewRadarCanvas.clientHeight || bounds.height));
@@ -1541,7 +1739,7 @@ function drawOverviewRadar(labels, values) {
       }
     });
     overviewRadarCtx.closePath();
-    overviewRadarCtx.strokeStyle = "rgba(255,255,255,0.12)";
+    overviewRadarCtx.strokeStyle = isLightTheme ? withAlpha(text, 0.22) : withAlpha(text, 0.12);
     overviewRadarCtx.stroke();
   }
 
@@ -1552,9 +1750,9 @@ function drawOverviewRadar(labels, values) {
     overviewRadarCtx.beginPath();
     overviewRadarCtx.moveTo(centerX, centerY);
     overviewRadarCtx.lineTo(x, y);
-    overviewRadarCtx.strokeStyle = "rgba(255,255,255,0.14)";
+    overviewRadarCtx.strokeStyle = isLightTheme ? withAlpha(text, 0.2) : withAlpha(text, 0.14);
     overviewRadarCtx.stroke();
-    overviewRadarCtx.fillStyle = "rgba(255,255,255,0.78)";
+    overviewRadarCtx.fillStyle = isLightTheme ? withAlpha(text, 0.92) : withAlpha(text, 0.78);
     overviewRadarCtx.font = "12px DM Sans";
     overviewRadarCtx.textAlign = "center";
     overviewRadarCtx.fillText(label, centerX + Math.cos(angle) * (radius + 18), centerY + Math.sin(angle) * (radius + 18));
@@ -1574,13 +1772,27 @@ function drawOverviewRadar(labels, values) {
   });
   overviewRadarCtx.closePath();
   const fill = overviewRadarCtx.createLinearGradient(0, 0, width, height);
-  fill.addColorStop(0, "rgba(255, 42, 42, 0.38)");
-  fill.addColorStop(1, "rgba(59, 130, 246, 0.22)");
+  fill.addColorStop(0, withAlpha(accent, isLightTheme ? 0.46 : 0.38));
+  fill.addColorStop(1, withAlpha(accentSoft, isLightTheme ? 0.24 : 0.22));
   overviewRadarCtx.fillStyle = fill;
-  overviewRadarCtx.strokeStyle = "#ffffff";
-  overviewRadarCtx.lineWidth = 2;
+  overviewRadarCtx.strokeStyle = isLightTheme ? accent : text;
+  overviewRadarCtx.lineWidth = isLightTheme ? 2.6 : 2;
   overviewRadarCtx.fill();
   overviewRadarCtx.stroke();
+
+  values.forEach((value, index) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / totalAxes;
+    const pointRadius = radius * (Math.max(0, Math.min(100, value)) / 100);
+    const x = centerX + Math.cos(angle) * pointRadius;
+    const y = centerY + Math.sin(angle) * pointRadius;
+    overviewRadarCtx.beginPath();
+    overviewRadarCtx.arc(x, y, isLightTheme ? 4.5 : 4, 0, Math.PI * 2);
+    overviewRadarCtx.fillStyle = isLightTheme ? accent : "#ffffff";
+    overviewRadarCtx.fill();
+    overviewRadarCtx.strokeStyle = isLightTheme ? "#ffffff" : accent;
+    overviewRadarCtx.lineWidth = 1.4;
+    overviewRadarCtx.stroke();
+  });
 }
 
 function renderDashboardInsights(areas, strongest, weakest) {
@@ -1607,7 +1819,7 @@ function renderDashboardInsights(areas, strongest, weakest) {
     const item = document.createElement("div");
     item.className = "finance-legend-item";
     item.innerHTML = `
-      <span class="legend-dot" style="background:#ff2a2a"></span>
+      <span class="legend-dot" style="background:${escapeHtml(getCssColor("--accent"))}"></span>
       <span>${escapeHtml(insight.title)}</span>
       <strong>${escapeHtml(insight.body)}</strong>
     `;
@@ -1649,6 +1861,23 @@ function renderMoneyVisibility() {
   toggleMoneyVisibility.textContent = state.moneyHidden ? "Mostrar" : "Ocultar";
   toggleMoneyVisibility.setAttribute("aria-pressed", String(state.moneyHidden));
   financeBaseAmount.type = state.moneyHidden ? "password" : "number";
+}
+
+function getCssColor(variableName) {
+  return getComputedStyle(document.body).getPropertyValue(variableName).trim() || "#ffffff";
+}
+
+function withAlpha(color, alpha) {
+  if (color.startsWith("#")) {
+    const normalized = color.length === 4
+      ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+      : color;
+    const r = Number.parseInt(normalized.slice(1, 3), 16);
+    const g = Number.parseInt(normalized.slice(3, 5), 16);
+    const b = Number.parseInt(normalized.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return color;
 }
 
 function formatMoneyValue(value) {

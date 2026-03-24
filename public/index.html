@@ -21,7 +21,7 @@
           <span></span>
         </button>
         <div class="topbar-copy">
-          <p class="eyebrow">Planner mensual</p>
+          <p class="eyebrow">SECOND BRAIN</p>
           <strong id="currentSectionLabel">Dashboard</strong>
         </div>
       </header>
@@ -37,6 +37,7 @@
             <button class="menu-link" type="button" data-section="habits">Habit tracker</button>
             <button class="menu-link" type="button" data-section="balance">Saldo actual</button>
             <button class="menu-link" type="button" data-section="training">Entrenamiento</button>
+            <button class="menu-link" type="button" data-section="customize">Personalización</button>
           </nav>
         </aside>
 
@@ -392,7 +393,7 @@
                         <input id="routineSearch" name="routineSearch" type="search" maxlength="50" placeholder="Ej. press, sentadilla, remo..." />
                       </label>
                       <label>
-                        Agregado rápido en móvil
+                        Agregado rápido
                         <select id="routineQuickDay" name="routineQuickDay">
                           <option value="monday">Lunes</option>
                           <option value="tuesday">Martes</option>
@@ -544,7 +545,80 @@
               </section>
             </div>
           </section>
+
+          <section id="section-customize" class="app-section">
+            <header class="hero">
+              <div class="hero-copy">
+                <p class="eyebrow">Personalización</p>
+                <h1>Dale tu estilo a la aplicación.</h1>
+                <p class="hero-text">Cambia el tema visual y ajusta la vibra general del dashboard, los hábitos, finanzas y entrenamiento.</p>
+              </div>
+              <section class="hero-card">
+                <div class="stat">
+                  <span class="stat-label">Tema activo</span>
+                  <strong id="activeThemeLabel">Neón rojo</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Modo visual</span>
+                  <strong>Personalizable</strong>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Experiencia</span>
+                  <strong>App dinámica</strong>
+                </div>
+              </section>
+            </header>
+
+            <div class="dashboard">
+              <section class="panel overview-panel">
+                <div class="panel-heading">
+                  <h2>Selecciona un tema</h2>
+                  <p>Los cambios se aplican de inmediato y se guardan para tu próxima visita.</p>
+                </div>
+                <div class="theme-grid">
+                  <button class="theme-card is-active" type="button" data-theme="neo-red">
+                    <span class="theme-swatch" data-theme-preview="neo-red"></span>
+                    <strong>Neón rojo</strong>
+                    <small>La identidad original de la app.</small>
+                  </button>
+                  <button class="theme-card" type="button" data-theme="light">
+                    <span class="theme-swatch" data-theme-preview="light"></span>
+                    <strong>Claro</strong>
+                    <small>Fondo limpio y contrastes suaves.</small>
+                  </button>
+                  <button class="theme-card" type="button" data-theme="dark">
+                    <span class="theme-swatch" data-theme-preview="dark"></span>
+                    <strong>Dark</strong>
+                    <small>Negro profundo con acentos discretos.</small>
+                  </button>
+                  <button class="theme-card" type="button" data-theme="sub-zero">
+                    <span class="theme-swatch" data-theme-preview="sub-zero"></span>
+                    <strong>Sub-Zero</strong>
+                    <small>Azules fríos con brillo helado.</small>
+                  </button>
+                  <button class="theme-card" type="button" data-theme="violet">
+                    <span class="theme-swatch" data-theme-preview="violet"></span>
+                    <strong>Morado</strong>
+                    <small>Tonos intensos con luz eléctrica.</small>
+                  </button>
+                  <button class="theme-card" type="button" data-theme="emerald">
+                    <span class="theme-swatch" data-theme-preview="emerald"></span>
+                    <strong>Verde</strong>
+                    <small>Neón esmeralda con aire fresco.</small>
+                  </button>
+                </div>
+              </section>
+            </div>
+          </section>
         </main>
+
+        <footer id="appFooter" class="app-footer">
+          <div class="app-footer-copy">
+            <span class="eyebrow">Second Brain</span>
+            <h2>Constancia, claridad y enfoque en un solo lugar.</h2>
+            <p>Tu progreso diario, tus finanzas y tu entrenamiento ahora viven dentro de una experiencia más personalizable.</p>
+          </div>
+        </footer>
       </div>
     </div>
 
