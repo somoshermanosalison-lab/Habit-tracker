@@ -151,7 +151,13 @@
                   </label>
                   <button type="submit">Guardar hábito</button>
                 </form>
-                <button id="resetDataButton" class="ghost-button" type="button">Reiniciar seguimiento</button>
+                <div class="data-backup-row">
+                  <button id="exportDataButton" class="ghost-button" type="button">⬇️ Exportar respaldo</button>
+                  <button id="importDataButton" class="ghost-button" type="button">⬆️ Importar respaldo</button>
+                </div>
+                <p class="data-backup-note">Tus hábitos ahora se mantienen mes a mes. Descarga un respaldo para no perder tu información si limpias el navegador.</p>
+                <button id="resetDataButton" class="ghost-button" type="button">Reiniciar marcas del mes</button>
+                <input id="importDataInput" type="file" accept="application/json,.json" hidden />
               </section>
 
               <section class="panel wave-panel">

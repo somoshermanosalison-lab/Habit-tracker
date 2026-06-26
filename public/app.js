@@ -66,6 +66,9 @@ const habitForm = document.getElementById("habitForm");
 const habitNameInput = document.getElementById("habitName");
 const habitCategoryInput = document.getElementById("habitCategory");
 const resetDataButton = document.getElementById("resetDataButton");
+const exportDataButton = document.getElementById("exportDataButton");
+const importDataButton = document.getElementById("importDataButton");
+const importDataInput = document.getElementById("importDataInput");
 const habitTableHead = document.getElementById("habitTableHead");
 const habitTableBody = document.getElementById("habitTableBody");
 const tableScroll = document.querySelector(".table-scroll");
@@ -177,6 +180,9 @@ function initialize() {
 function attachEvents() {
   habitForm.addEventListener("submit", handleHabitSubmit);
   resetDataButton.addEventListener("click", handleReset);
+  exportDataButton.addEventListener("click", handleExportData);
+  importDataButton.addEventListener("click", () => importDataInput.click());
+  importDataInput.addEventListener("change", handleImportData);
   monthSelect.addEventListener("change", handlePeriodChange);
   yearSelect.addEventListener("change", handlePeriodChange);
   window.addEventListener("resize", () => {
@@ -232,16 +238,76 @@ function loadState() {
 
   try {
     const parsed = JSON.parse(stored);
-    return {
-      selectedMonthKey: parsed.selectedMonthKey || currentMonthKey,
-      activeSection: parsed.activeSection || "dashboard",
-      theme: parsed.theme || "neo-red",
-      moneyHidden: Boolean(parsed.moneyHidden),
-      monthData: normalizeMonthData(parsed.monthData, currentMonthKey)
-    };
+    return normalizeState(parsed, currentMonthKey);
   } catch (error) {
     return createInitialState(currentMonthKey);
   }
+}
+
+function normalizeState(parsed, currentMonthKey) {
+  const { habits, habitEntries } = migrateGlobalHabits(parsed);
+  return {
+    selectedMonthKey: parsed.selectedMonthKey || currentMonthKey,
+    activeSection: parsed.activeSection || "dashboard",
+    theme: parsed.theme || "neo-red",
+    moneyHidden: Boolean(parsed.moneyHidden),
+    habits,
+    habitEntries,
+    monthData: normalizeMonthData(parsed.monthData, currentMonthKey)
+  };
+}
+
+// Los hábitos solían guardarse por mes, por eso desaparecían al cambiar de mes.
+// Ahora son globales y persisten en el tiempo. Esta función migra datos antiguos
+// (hábitos y marcas dentro de cada mes) hacia la nueva estructura global sin perder
+// ninguna marca, y elimina duplicados del mismo hábito creados en distintos meses.
+function migrateGlobalHabits(parsed) {
+  if (Array.isArray(parsed.habits)) {
+    const habits = parsed.habits.map((habit) => ({
+      id: habit.id || createId(),
+      name: String(habit.name || "Hábito"),
+      category: String(habit.category || "Personal")
+    }));
+    const habitEntries = parsed.habitEntries && typeof parsed.habitEntries === "object"
+      ? { ...parsed.habitEntries }
+      : {};
+    return { habits, habitEntries };
+  }
+
+  const habits = [];
+  const habitEntries = {};
+  const keyToId = new Map();
+  const rawMonths = parsed.monthData && typeof parsed.monthData === "object" ? parsed.monthData : {};
+
+  Object.keys(rawMonths).sort().forEach((monthKey) => {
+    const month = rawMonths[monthKey] || {};
+    const monthHabits = Array.isArray(month.habits) ? month.habits : [];
+    const monthEntries = month.entries && typeof month.entries === "object" ? month.entries : {};
+
+    monthHabits.forEach((habit) => {
+      const name = String(habit.name || "Hábito");
+      const category = String(habit.category || "Personal");
+      const dedupeKey = `${name.toLowerCase()}|${category.toLowerCase()}`;
+      let canonicalId = keyToId.get(dedupeKey);
+      if (!canonicalId) {
+        canonicalId = habit.id || createId();
+        keyToId.set(dedupeKey, canonicalId);
+        habits.push({ id: canonicalId, name, category });
+      }
+
+      const originalEntries = monthEntries[habit.id] || {};
+      if (!habitEntries[canonicalId]) {
+        habitEntries[canonicalId] = {};
+      }
+      Object.keys(originalEntries).forEach((isoDate) => {
+        if (originalEntries[isoDate]) {
+          habitEntries[canonicalId][isoDate] = true;
+        }
+      });
+    });
+  });
+
+  return { habits, habitEntries };
 }
 
 function createInitialState(monthKey) {
@@ -250,6 +316,8 @@ function createInitialState(monthKey) {
     activeSection: "dashboard",
     theme: "neo-red",
     moneyHidden: false,
+    habits: [],
+    habitEntries: {},
     monthData: {
       [monthKey]: createEmptyMonthData()
     }
@@ -335,10 +403,55 @@ function saveState() {
   writeStateCookies(serialized);
 }
 
+function handleExportData() {
+  const serialized = JSON.stringify(state, null, 2);
+  const blob = new Blob([serialized], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `habit-tracker-respaldo-${toIsoDate(new Date())}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function handleImportData(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      const confirmed = window.confirm(
+        "Esto reemplazará tus datos actuales con los del respaldo. ¿Deseas continuar?"
+      );
+      if (!confirmed) {
+        return;
+      }
+      const next = normalizeState(parsed, getMonthKeyFromDate(new Date()));
+      Object.keys(state).forEach((key) => delete state[key]);
+      Object.assign(state, next);
+      saveState();
+      ensureSelectedPeriod();
+      ensureMonthState(state.selectedMonthKey);
+      applyTheme(state.theme || "neo-red");
+      render();
+      window.alert("Respaldo importado correctamente.");
+    } catch (error) {
+      window.alert("No se pudo leer el archivo. Asegúrate de que sea un respaldo válido (.json).");
+    } finally {
+      importDataInput.value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
 function createEmptyMonthData() {
   return {
-    habits: [],
-    entries: {},
     finances: [],
     baseAmount: 0,
     training: {
@@ -393,8 +506,6 @@ function normalizeMonthData(rawMonthData, currentMonthKey) {
   if (rawMonthData && typeof rawMonthData === "object") {
     Object.entries(rawMonthData).forEach(([monthKey, monthState]) => {
       normalized[monthKey] = {
-        habits: Array.isArray(monthState?.habits) ? monthState.habits : [],
-        entries: monthState?.entries && typeof monthState.entries === "object" ? monthState.entries : {},
         finances: Array.isArray(monthState?.finances) ? monthState.finances : [],
         baseAmount: Number(monthState?.baseAmount || 0),
         training: {
@@ -663,12 +774,14 @@ function initializeFooterReveal() {
   observer.observe(appFooter);
 }
 
-function renderHabits() {
+function renderHabits(scroll = true) {
   const days = getMonthDays();
   renderHabitTable(days);
   updateHabitSummary(days);
   renderWave();
-  scrollToToday(days);
+  if (scroll) {
+    scrollToToday(days);
+  }
 }
 
 function handleHabitSubmit(event) {
@@ -681,7 +794,7 @@ function handleHabitSubmit(event) {
     return;
   }
 
-  getCurrentMonthState().habits.push({
+  state.habits.push({
     id: createId(),
     name,
     category
@@ -693,14 +806,25 @@ function handleHabitSubmit(event) {
 }
 
 function handleReset() {
-  const confirmed = window.confirm("Se borrarán los hábitos y todas las marcas de este mes. ¿Deseas continuar?");
+  const confirmed = window.confirm(
+    "Se borrarán las marcas del mes visible para todos tus hábitos. Tus hábitos y los demás meses se conservan. ¿Deseas continuar?"
+  );
   if (!confirmed) {
     return;
   }
 
-  const monthState = getCurrentMonthState();
-  monthState.habits = [];
-  monthState.entries = {};
+  const monthIsoDates = new Set(getMonthDays().map((day) => day.isoDate));
+  state.habits.forEach((habit) => {
+    const entries = state.habitEntries[habit.id];
+    if (!entries) {
+      return;
+    }
+    monthIsoDates.forEach((isoDate) => delete entries[isoDate]);
+    if (!Object.keys(entries).length) {
+      delete state.habitEntries[habit.id];
+    }
+  });
+
   saveState();
   renderHabits();
 }
@@ -723,22 +847,26 @@ function renderHabitTable(days) {
   });
 
   habitTableHead.appendChild(headerRow);
-  const monthState = getCurrentMonthState();
 
-  if (!monthState.habits.length) {
+  if (!state.habits.length) {
     habitTableBody.appendChild(emptyStateTemplate.content.cloneNode(true));
     return;
   }
 
-  monthState.habits.forEach((habit) => {
+  state.habits.forEach((habit) => {
     const row = document.createElement("tr");
     const habitCell = document.createElement("td");
+    const streak = getHabitStreak(habit.id);
+    const streakBadge = streak > 0
+      ? `<span class="habit-streak" title="Racha actual: ${streak} día${streak === 1 ? "" : "s"} seguidos">🔥 ${streak}</span>`
+      : "";
     habitCell.innerHTML = `
       <div class="habit-cell">
         <div class="habit-meta">
           <strong>${escapeHtml(habit.name)}</strong>
           <span>${escapeHtml(habit.category)}</span>
         </div>
+        ${streakBadge}
         <button class="habit-delete" type="button" aria-label="Eliminar ${escapeHtml(habit.name)}">×</button>
       </div>
     `;
@@ -753,7 +881,7 @@ function renderHabitTable(days) {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.className = "habit-check";
-      checkbox.checked = Boolean(monthState.entries[habit.id]?.[day.isoDate]);
+      checkbox.checked = Boolean(state.habitEntries[habit.id]?.[day.isoDate]);
       checkbox.setAttribute("aria-label", `${habit.name} - ${day.fullLabel}`);
       checkbox.addEventListener("change", () => toggleHabitEntry(habit.id, day.isoDate, checkbox.checked));
       cell.appendChild(checkbox);
@@ -764,29 +892,42 @@ function renderHabitTable(days) {
   });
 }
 
+// Racha actual: días consecutivos cumplidos terminando hoy. Si aún no marcas hoy,
+// la racha se mide desde ayer para no romperse antes de que termine el día.
+function getHabitStreak(habitId) {
+  const entries = state.habitEntries[habitId] || {};
+  const cursor = new Date();
+  if (!entries[toIsoDate(cursor)]) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  let streak = 0;
+  while (entries[toIsoDate(cursor)]) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 function toggleHabitEntry(habitId, isoDate, isChecked) {
-  const monthState = getCurrentMonthState();
-  if (!monthState.entries[habitId]) {
-    monthState.entries[habitId] = {};
+  if (!state.habitEntries[habitId]) {
+    state.habitEntries[habitId] = {};
   }
 
   if (isChecked) {
-    monthState.entries[habitId][isoDate] = true;
+    state.habitEntries[habitId][isoDate] = true;
   } else {
-    delete monthState.entries[habitId][isoDate];
-    if (!Object.keys(monthState.entries[habitId]).length) {
-      delete monthState.entries[habitId];
+    delete state.habitEntries[habitId][isoDate];
+    if (!Object.keys(state.habitEntries[habitId]).length) {
+      delete state.habitEntries[habitId];
     }
   }
 
   saveState();
-  updateHabitSummary(getMonthDays());
-  renderWave();
+  renderHabits(false);
 }
 
 function deleteHabit(habitId) {
-  const monthState = getCurrentMonthState();
-  const habit = monthState.habits.find((item) => item.id === habitId);
+  const habit = state.habits.find((item) => item.id === habitId);
   if (!habit) {
     return;
   }
@@ -796,17 +937,24 @@ function deleteHabit(habitId) {
     return;
   }
 
-  monthState.habits = monthState.habits.filter((item) => item.id !== habitId);
-  delete monthState.entries[habitId];
+  state.habits = state.habits.filter((item) => item.id !== habitId);
+  delete state.habitEntries[habitId];
   saveState();
   renderHabits();
 }
 
+function countMonthCompletions(days) {
+  const isoSet = new Set(days.map((day) => day.isoDate));
+  return state.habits.reduce((count, habit) => {
+    const entries = state.habitEntries[habit.id] || {};
+    return count + Object.keys(entries).filter((isoDate) => isoSet.has(isoDate)).length;
+  }, 0);
+}
+
 function updateHabitSummary(days) {
-  const monthState = getCurrentMonthState();
-  const totalHabits = monthState.habits.length;
+  const totalHabits = state.habits.length;
   const totalSlots = totalHabits * days.length;
-  const totalCompleted = monthState.habits.reduce((count, habit) => count + Object.keys(monthState.entries[habit.id] || {}).length, 0);
+  const totalCompleted = countMonthCompletions(days);
   const percent = totalSlots ? Math.round((totalCompleted / totalSlots) * 100) : 0;
   completionRate.textContent = `${percent}%`;
   habitCount.textContent = String(totalHabits);
@@ -815,13 +963,12 @@ function updateHabitSummary(days) {
 }
 
 function getCompletionForDate(isoDate) {
-  const monthState = getCurrentMonthState();
-  if (!monthState.habits.length) {
+  if (!state.habits.length) {
     return 0;
   }
 
-  const completedHabits = monthState.habits.reduce((count, habit) => count + (monthState.entries[habit.id]?.[isoDate] ? 1 : 0), 0);
-  return completedHabits / monthState.habits.length;
+  const completedHabits = state.habits.reduce((count, habit) => count + (state.habitEntries[habit.id]?.[isoDate] ? 1 : 0), 0);
+  return completedHabits / state.habits.length;
 }
 
 function renderWave(animate = true) {
@@ -1224,9 +1371,8 @@ function renderFinancePie() {
 
 function renderOverview() {
   const days = getMonthDays();
-  const monthState = getCurrentMonthState();
-  const totalSlots = monthState.habits.length * days.length;
-  const completed = monthState.habits.reduce((count, habit) => count + Object.keys(monthState.entries[habit.id] || {}).length, 0);
+  const totalSlots = state.habits.length * days.length;
+  const completed = countMonthCompletions(days);
   const habitPercent = totalSlots ? Math.round((completed / totalSlots) * 100) : 0;
   const financeStats = getFinanceStats();
   const trainingStats = getTrainingStats();
